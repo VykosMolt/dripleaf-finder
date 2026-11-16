@@ -1,10 +1,6 @@
 package dripleaffinder;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -26,13 +22,8 @@ public final class Data {
         return rows;
     }
 
-    public static List<String> lines(Path file, String resource) throws IOException {
-        if (file != null && Files.exists(file)) return Files.readAllLines(file);
-        if (resource == null) return List.of();
-        try (InputStream in = Data.class.getClassLoader().getResourceAsStream(resource)) {
-            if (in == null) return List.of();
-            return new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8)).lines().toList();
-        }
+    public static List<String> lines(Path file) throws IOException {
+        return Files.exists(file) ? Files.readAllLines(file) : List.of();
     }
 
     static String read(Path file) {

@@ -50,7 +50,6 @@ final class SeedSearch {
     private volatile Setup setup;
     private boolean missedLive;
     private String key, pendingKey;
-    private ServerProfile searchedProfile;
     private BlockPos center;
     private int radius, ticks, idleTicks;
     private String joinedKey;
@@ -265,7 +264,6 @@ final class SeedSearch {
             return;
         }
         this.key = key;
-        this.searchedProfile = Finder.connectionProfile(mc);
         this.center = mc.player.blockPosition();
         this.radius = Math.max(64, Math.min(MAX_RADIUS, radius));
         this.startedAt = System.currentTimeMillis();
@@ -419,9 +417,8 @@ final class SeedSearch {
         Path folder = Finder.DATA.resolve(key);
         try {
             Files.createDirectories(folder);
-            if (!lush.isEmpty()) Files.write(folder.resolve("lush.tsv"), mergeLush(Data.lines(folder.resolve("lush.tsv"),
-                searchedProfile == null ? null : searchedProfile.lushResource()), lush));
-            Files.write(folder.resolve("predictions.tsv"), mergePredictions(Data.lines(folder.resolve("predictions.tsv"), null), complete));
+            if (!lush.isEmpty()) Files.write(folder.resolve("lush.tsv"), mergeLush(Data.lines(folder.resolve("lush.tsv")), lush));
+            Files.write(folder.resolve("predictions.tsv"), mergePredictions(Data.lines(folder.resolve("predictions.tsv")), complete));
         } catch (IOException e) {
             lastResult = "Could not save the search results: " + e.getMessage();
         }

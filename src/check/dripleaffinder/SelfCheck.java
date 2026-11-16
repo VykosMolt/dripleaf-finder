@@ -97,17 +97,10 @@ public final class SelfCheck {
         expect("memory", java.util.List.of(memory.enter("a"), memory.announced.add(p), memory.enter("a"), memory.announced.add(p),
             memory.enter("b"), memory.announced.add(p)), java.util.List.of(true, true, false, false, true, true));
 
-        ServerProfile keyed = new ServerProfile() {
-            public boolean matches(String host) { return true; }
-            public String key() { return "example.net"; }
-            public int minCanopyY() { return 32; }
-        };
-        expect("data keys", java.util.List.of(ServerProfile.dataKey(null, "Play.Example.org:25565", null), ServerProfile.dataKey(keyed, "a.example.net", null),
-                ServerProfile.dataKey(null, null, "New World (2)"), ServerProfile.dataKey(null, null, null), ServerProfile.dataKey(null, null, ".."),
-                ServerProfile.dataKey(null, "play.example.org:25601", null), ServerProfile.dataKey(null, "play.example.org", null)),
-            java.util.List.of("play.example.org", "example.net", "local-new_world__2_", "local", "local", "play.example.org_25601", "play.example.org"));
-        expect("canopy filter", java.util.List.of(ServerProfile.keepCanopy(-18, -14, keyed),
-            ServerProfile.keepCanopy(60, 64, keyed), ServerProfile.keepCanopy(-18, -14, null)), java.util.List.of(false, true, true));
+        expect("data keys", java.util.List.of(DataKey.of("Play.Example.org:25565", null),
+                DataKey.of(null, "New World (2)"), DataKey.of(null, null), DataKey.of(null, ".."),
+                DataKey.of("play.example.org:25601", null), DataKey.of("play.example.org", null)),
+            java.util.List.of("play.example.org", "local-new_world__2_", "local", "local", "play.example.org_25601", "play.example.org"));
 
         expect("splice guidance", java.util.List.of(
             Guidance.text(3705, 62, "air", "231,3", "232,3"),
@@ -134,12 +127,12 @@ public final class SelfCheck {
             Versions.fromStatus("Paper 1.21.4", 9999), Versions.fromStatus("Velocity 1.7.2-1.21.4", 769),
             Versions.fromStatus("BungeeCord 1.8.x-1.21.x", 774)),
             java.util.Arrays.asList("1.21.4", "1.20.1", null, "1.21.1", "1.21.3", "26.2", null, "1.21.4", null, null));
-        expect("host names", java.util.List.of(ServerProfile.host("Java.HugoSMP.net:25565"), ServerProfile.host("hugosmp.net."),
-                ServerProfile.host(null), ServerProfile.host(".."), ServerProfile.host("[::1]:25565")),
+        expect("host names", java.util.List.of(DataKey.host("Java.HugoSMP.net:25565"), DataKey.host("hugosmp.net."),
+                DataKey.host(null), DataKey.host(".."), DataKey.host("[::1]:25565")),
             java.util.List.of("java.hugosmp.net", "hugosmp.net", "local", "unknown", "unknown"));
 
         System.out.println("SELF-CHECK PASSED: masked server " + masked.size() + " / plain server " + plain.size()
             + " spliced top halves; whole plants, lone bottoms, big dripleaf, stone/deepslate/ore below, open sky, outside lush caves ignored;"
-            + " 2 azalea trees, trunkless leaves dropped; settle, data rows, memory, data keys, canopy filter, host names, server versions, splice guidance");
+            + " 2 azalea trees, trunkless leaves dropped; settle, data rows, memory, data keys, host names, server versions, splice guidance");
     }
 }

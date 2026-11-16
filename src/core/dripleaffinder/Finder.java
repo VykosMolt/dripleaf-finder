@@ -1,7 +1,6 @@
 package dripleaffinder;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -41,7 +40,6 @@ public final class Finder {
     private final Map<BlockPos, Integer> lush = new HashMap<>();
     private final List<AABB> azaleas = new ArrayList<>();
     final Memory memory = new Memory();
-    private ServerProfile profile;
     private ClientLevel level;
     private int ticks;
     private Consumer<Boolean> enabledListener;
@@ -106,14 +104,10 @@ public final class Finder {
     }
 
     void status() {
-        message("Dripleaf Finder " + (settings.enabled ? "on" : "off") + " | masked server " + (masked() ? "yes" : "no")
-            + (profile != null ? " (" + memory.key() + " profile)" : "") + " | lush caves " + (settings.lush ? lush.size() + " known" : "off")
+        message("Dripleaf Finder " + (settings.enabled ? "on" : "off") + " | masked server " + (settings.masked ? "yes" : "no")
+            + " | lush caves " + (settings.lush ? lush.size() + " known" : "off")
             + " | azalea " + (settings.azalea ? "on" : "off") + " | predictions " + predicted.size()
             + ". Commands: /dripleaf on|off, masked on|off, azalea on|off, lush [on|off], predictions, seed [<seed>|clear], version [<version>|auto], search [<radius>|stop]");
-    }
-
-    boolean masked() {
-        return settings.masked || profile != null && profile.maskedSections();
     }
 
     boolean lushNear(BlockPos pos) {
@@ -133,9 +127,7 @@ public final class Finder {
     private void enterWorld(Minecraft mc, ClientLevel next) {
         clearWorld();
         level = next;
-        String address = Compat.serverAddress(mc);
-        profile = ServerProfile.forHost(ServerProfile.host(address));
-        memory.enter(ServerProfile.dataKey(profile, address, Compat.singleplayerWorld(mc)));
+        memory.enter(DataKey.of(Compat.serverAddress(mc), Compat.singleplayerWorld(mc)));
         loadData();
         if (!predicted.isEmpty() && !memory.predictionsAnnounced && mc.player != null) {
             memory.predictionsAnnounced = true;
@@ -152,13 +144,13 @@ public final class Finder {
         lush.clear();
         if (level == null || !Compat.overworld(level)) return;
         Path folder = DATA.resolve(memory.key());
-        for (String[] f : rows(folder.resolve("predictions.tsv"), null, 6, 3)) {
+        for (String[] f : rows(folder.resolve("predictions.tsv"), 6, 3)) {
             BlockPos pos = new BlockPos(Integer.parseInt(f[0]), Integer.parseInt(f[1]), Integer.parseInt(f[2]));
             if (f.length > 6 && !f[6].equals("yes")) continue;
             String why = f.length > 9 ? Guidance.text(pos.getX(), pos.getZ(), f[4], f[8], f[9]) : f[5];
             if (!memory.settled.contains(pos)) predicted.put(pos, f[3] + " half, " + why);
         }
-        for (String[] f : rows(folder.resolve("lush.tsv"), profile == null ? null : profile.lushResource(), 4, 4)) {
+        for (String[] f : rows(folder.resolve("lush.tsv"), 4, 4)) {
             lush.put(new BlockPos(Integer.parseInt(f[0]), Integer.parseInt(f[1]), Integer.parseInt(f[2])), Integer.parseInt(f[3]));
         }
     }
@@ -172,13 +164,7 @@ public final class Finder {
     }
 
     static String connectionKey(Minecraft mc) {
-        if (mc.level == null) return null;
-        String address = Compat.serverAddress(mc);
-        return ServerProfile.dataKey(connectionProfile(mc), address, Compat.singleplayerWorld(mc));
-    }
-
-    static ServerProfile connectionProfile(Minecraft mc) {
-        return mc.level == null ? null : ServerProfile.forHost(ServerProfile.host(Compat.serverAddress(mc)));
+        return mc.level == null ? null : DataKey.of(Compat.serverAddress(mc), Compat.singleplayerWorld(mc));
     }
 
     void markPredictionsAnnounced() {
@@ -198,11 +184,11 @@ public final class Finder {
         Compat.toast(Minecraft.getInstance(), text);
     }
 
-    private List<String[]> rows(Path file, String resource, int fields, int ints) {
+    private List<String[]> rows(Path file, int fields, int ints) {
         try {
-            return Data.rows(Data.lines(file, resource), fields, ints);
+            return Data.rows(Data.lines(file), fields, ints);
         } catch (IOException | RuntimeException e) {
-            message("Could not read " + (Files.exists(file) ? file : resource) + " (" + e.getMessage() + ")");
+            message("Could not read " + file + " (" + e.getMessage() + ")");
             return List.of();
         }
     }
@@ -258,7 +244,7 @@ public final class Finder {
         if (mc.level != level) enterWorld(mc, mc.level);
         if (ticks % 100 == 0) scanned.clear();
         if (ticks++ % 10 != 0) return;
-        boolean masked = masked();
+        boolean masked = settings.masked;
         found.removeIf(pos -> {
             LevelChunk chunk = Compat.loadedChunk(level, pos.getX() >> 4, pos.getZ() >> 4);
             return chunk != null && !Splice.spliced(chunk, pos, chunk.getBlockState(pos), masked, this::lushNear);
@@ -298,7 +284,6 @@ public final class Finder {
     }
 
     private void azalea(AABB box) {
-        if (!ServerProfile.keepCanopy(box.minY, box.maxY, profile)) return;
         for (int i = 0; i < azaleas.size(); i++) {
             if (azaleas.get(i).inflate(1).intersects(box)) {
                 azaleas.set(i, azaleas.get(i).minmax(box));
