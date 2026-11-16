@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "dripleaf-finder",
+  "version": "${version}",
+  "name": "Dripleaf Finder",
+  "description": "Finds naturally spliced small dripleaf top halves, lush caves and azalea trees, on any server. Use /dripleaf or bind the toggle key; with the world seed (/dripleaf seed, /dripleaf search) it lists the ones the seed generates.",
+  "environment": "*",${mixins}
+  "entrypoints": {
+    "client": ["dripleaffinder.DripleafClient"],
+    "main": ["dripleaffinder.Searcher"],
+    "seedcrackerx": ["dripleaffinder.SeedcrackerLink"]${autism_entry}
+  },
+  "depends": {
+    "minecraft": "${mc_range}",
+    "fabricloader": ">=0.15.0",
+    "fabric-api-base": "*",
+    "java": ">=${java}"
+  }
+}

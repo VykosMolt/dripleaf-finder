@@ -1,0 +1,6 @@
+/build/
+.gradle/
+nodes/*/
+smoke/out/
+smoke/work/
+smoke/seedcracker/*.jar

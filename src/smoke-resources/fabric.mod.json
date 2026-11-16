@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "dripleaf-finder-smoke",
+  "version": "1.0.0",
+  "name": "Dripleaf Finder smoke test",
+  "environment": "client",
+  "entrypoints": {"client": ["dripleaffinder.Smoke"]},
+  "depends": {"dripleaf-finder": "*"}
+}
