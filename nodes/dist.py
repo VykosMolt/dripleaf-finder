@@ -22,7 +22,7 @@ engines = [mc for mc in releases if props(mc).get('search_only') == 'true']
 shutil.rmtree(DIST, ignore_errors=True)
 os.makedirs(DIST)
 bundled = {mc: open(jar(mc), 'rb').read() for mc in engines}
-table = addon + '\n' + ''.join(f'{mc}\t{os.path.basename(jar(mc))}\t{hashlib.sha1(data).hexdigest()}\n' for mc, data in bundled.items())
+table = ''.join(f'{mc}\t{os.path.basename(jar(mc))}\t{hashlib.sha1(data).hexdigest()}\n' for mc, data in bundled.items())
 out = os.path.join(DIST, os.path.basename(jar(addon)))
 with zipfile.ZipFile(jar(addon)) as z, zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED) as w:
     for info in z.infolist():
