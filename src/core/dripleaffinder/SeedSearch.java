@@ -75,7 +75,7 @@ public final class SeedSearch {
             refuse(key, "Join a world first", "Join a world first.", chat);
             return;
         }
-        if (finder.seeds.typedVersion() == null && finder.serverVersion.asking(key)) {
+        if (finder.seeds.typedVersion() == null && Compat.serverAddress(mc) != null && !finder.serverVersion.ready(key, mc.getConnection())) {
             refuse(key, "Asking the server's version; retry", "Still asking the server which version it runs; search again in a few seconds.",
                 chat);
             return;

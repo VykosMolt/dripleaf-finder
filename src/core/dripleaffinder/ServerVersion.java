@@ -40,9 +40,9 @@ final class ServerVersion {
         return query == null ? null : query.version;
     }
 
-    boolean asking(String key) {
+    boolean ready(String key, ClientPacketListener current) {
         Query query = queries.get(key);
-        return query != null && query.asking;
+        return current != null && current == connection && key.equals(joinedKey) && query != null && !query.asking;
     }
 
     private void joined(String key, String address) {

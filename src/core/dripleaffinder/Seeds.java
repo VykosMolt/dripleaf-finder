@@ -64,7 +64,8 @@ public final class Seeds {
 
     Path resultsFolder() {
         String key = key();
-        if (key != null && typedVersion() == null && finder.serverVersion.asking(key)) return null;
+        Minecraft mc = Minecraft.getInstance();
+        if (key != null && typedVersion() == null && Compat.serverAddress(mc) != null && !finder.serverVersion.ready(key, mc.getConnection())) return null;
         return key == null ? null : resultsFolder(Finder.DATA.resolve(key), seed(key), generationVersion()[0]);
     }
 
