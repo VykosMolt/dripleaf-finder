@@ -146,11 +146,21 @@ public final class ClientCheck {
         expect("unchecked candidates", java.util.List.of(SeedSearch.unchecked("10 of 12 still there after ticking (2 never loaded, not checked)"),
                 SeedSearch.unchecked("12 of 12 still there after ticking"), SeedSearch.unchecked("finding lush caves")),
             java.util.List.of(2, 0, 0));
+        java.util.List<String> statuses = java.util.List.of(
+            SeedSearch.progress("2/2 " + SeedSearch.phase("decorated 4500 of 10000 chunks"), 754, 12),
+            SeedSearch.progress("2/2 " + SeedSearch.phase("123 candidates among 4567 small dripleaf blocks; checking them after their chunks tick for 10 s"),
+                754, 12),
+            SeedSearch.progress(SeedSearch.phase("123 candidates among 4567 small dripleaf blocks; checking them after their chunks tick for 10 s"), 754, 12),
+            SeedSearch.progress("1/2 downloading 1.21.11", 5, 0),
+            SeedSearch.progress("2/2 " + SeedSearch.phase("1234 candidates among 4567 small dripleaf blocks; checking them"), 7380, 123));
+        expect("search status", java.util.List.of(statuses.subList(0, 4), statuses.stream().allMatch(s -> s.length() <= SeedSearch.STATUS_LENGTH)),
+            java.util.List.of(java.util.List.of("2/2 decorating 45%, 12:34, 12 found", "2/2 checking 123 halves, 12:34, 12 found",
+                "checking 123 halves, 12:34, 12 found", "1/2 downloading 1.21.11, 0:05"), true));
         commandLine();
 
         System.out.println("CLIENT CHECK PASSED: 2 azalea trees, trunkless leaves dropped; data rows, box edges, memory, data keys, host names,"
             + " server versions, server types, folia guidance, splice guidance, search memory, brief status, candidates row, set-aside names, set aside,"
-            + " merged predictions, spawn chunks kept, overworld centre, unchecked candidates, search command line");
+            + " merged predictions, spawn chunks kept, overworld centre, unchecked candidates, search status, search command line");
     }
 
     static void setAside(String name) throws java.io.IOException {

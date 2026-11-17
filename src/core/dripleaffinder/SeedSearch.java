@@ -192,9 +192,20 @@ public final class SeedSearch {
         int index = current != null ? runs.indexOf(current) : runs.size(), passes = SearchRun.ORDERS.size();
         String phase = current != null ? current.progress : pending != null && index < passes ? pending.phase : "saving";
         long seconds = (System.currentTimeMillis() - startedAt) / 1000;
-        String pass = together || index >= passes ? "" : " " + (index + 1) + "/" + passes;
-        return "Searching" + pass + ": " + phase + ", " + seconds / 60 + ":" + String.format(Locale.ROOT, "%02d", seconds % 60)
-            + (hits.isEmpty() ? "" : ", " + hits.size() + " found");
+        String pass = together || index >= passes ? "" : (index + 1) + "/" + passes + " ";
+        return progress(pass + phase, seconds, hits.size());
+    }
+
+    static String progress(String phase, long seconds, int found) {
+        String tail = ", " + seconds / 60 + ":" + String.format(Locale.ROOT, "%02d", seconds % 60) + (found == 0 ? "" : ", " + found + " found");
+        return brief(phase, STATUS_LENGTH - tail.length()) + tail;
+    }
+
+    static String phase(String status) {
+        String[] w = status.split(" ");
+        if (status.matches("(finding|scanning|measuring) .*")) return status;
+        if (status.startsWith("decorated ")) return "decorating " + 100 * Long.parseLong(w[1]) / Math.max(1, Long.parseLong(w[3])) + "%";
+        return status.contains(" candidates among ") ? "checking " + w[0] + " halves" : null;
     }
 
     static String brief(String text, int max) {
@@ -319,10 +330,8 @@ public final class SeedSearch {
         String[] f = line.split("\t");
         switch (f[0]) {
             case "status" -> {
-                String[] w = f[1].split(" ");
-                if (f[1].matches("(finding|scanning|measuring) .*")) run.progress = f[1];
-                else if (f[1].startsWith("decorated ")) run.progress = "decorating " + 100 * Long.parseLong(w[1]) / Math.max(1, Long.parseLong(w[3])) + "%";
-                else if (f[1].contains(" candidates among ")) run.progress = "checking " + w[0] + " candidates";
+                String phase = phase(f[1]);
+                if (phase != null) run.progress = phase;
                 unchecked += unchecked(f[1]);
             }
             case "lush" -> lush.add(String.join("\t", f[1], f[2], f[3], f[4]));
@@ -401,7 +410,7 @@ public final class SeedSearch {
         results.put(key, !done ? brief("Failed: " + failed.values().iterator().next(), STATUS_LENGTH - suffix.length()) + suffix
             : saveError != null ? "Could not save results"
             : !complete ? brief("Done, " + String.join(", ", gaps) + ": " + halves + lush.size() + " lush", STATUS_LENGTH)
-            : "Done: " + halves + lush.size() + " lush tiles, " + seconds + " s");
+            : brief("Done: " + halves + lush.size() + " lush tiles, " + seconds + " s", STATUS_LENGTH));
         startPending(mc);
     }
 

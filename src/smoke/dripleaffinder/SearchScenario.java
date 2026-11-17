@@ -45,7 +45,7 @@ final class SearchScenario implements Scenario {
             if (!status.equals(lastStatus)) {
                 System.out.println("SMOKE status: " + status);
                 lastStatus = status;
-                phases.add(status.substring(status.indexOf(": ") + 2).split("[ ,]")[0]);
+                phases.add(status.replaceFirst("^\\d+/\\d+ ", "").split("[ ,]")[0]);
             }
         }
         if (!smoke.searchDone(finder, arrivedAt)) {
