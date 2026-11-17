@@ -151,8 +151,12 @@ public final class Finder {
         return predicted.keySet().stream().filter(pos -> !hidden(pos)).toList();
     }
 
+    long hiddenCount() {
+        return predicted.keySet().stream().filter(this::hidden).count();
+    }
+
     String hiddenNote() {
-        return ServerType.hiddenNote(predicted.keySet().stream().filter(this::hidden).count(), predicted.size());
+        return ServerType.hiddenNote(hiddenCount(), predicted.size());
     }
 
     void reloadData() {
