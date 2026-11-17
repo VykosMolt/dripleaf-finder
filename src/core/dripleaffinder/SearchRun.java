@@ -166,7 +166,26 @@ final class SearchRun {
     }
 
     void kill() {
+        // A launcher wrapper (or a helper the JVM starts) must not be left behind either.
+        process.toHandle().descendants().forEach(ProcessHandle::destroyForcibly);
         process.destroyForcibly();
+    }
+
+    boolean reap(long seconds) {
+        try {
+            if (process.waitFor(seconds, TimeUnit.SECONDS)) return true;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
+        process.toHandle().descendants().forEach(ProcessHandle::destroyForcibly);
+        process.destroyForcibly();
+        try {
+            return process.waitFor(2, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
     }
 
     void awaitExit() {

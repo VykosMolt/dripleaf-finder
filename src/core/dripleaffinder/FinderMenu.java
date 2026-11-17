@@ -121,7 +121,8 @@ final class FinderMenu implements MenuModel {
     }
 
     public void setMemoryGb(int gb) {
-        gb = Math.max(1, Math.min(maxMemoryGb(), gb));
+        int max = maxMemoryGb();
+        gb = Math.max(Math.min(MenuModel.MIN_MEMORY_GB, max), Math.min(max, gb));
         if (settings.memoryGb() == gb) return;
         settings.memoryGb = gb;
         settings.save();
@@ -150,6 +151,6 @@ final class FinderMenu implements MenuModel {
     }
 
     public void stop() {
-        finder.search.stop(false);
+        finder.search.stop();
     }
 }

@@ -404,7 +404,7 @@ def catalogue_versions(last):
 
 def flow_a():
     global initial_radius, initial_memory
-    labels = ["Masked Server", "World Seed", "World Version"] + ["Server Type"] * HAS_TYPE + ["Search Radius", "Search Memory", "Status", "Candidates", "Seed Search"]
+    labels = ["Masked Server", "World Seed", "World Version"] + ["Server Type"] * HAS_TYPE + ["Search Radius", "Search Memory", "Status", "Candidates", "Seed Search", "Stop Search"]
     s, seen = view("a-window", top=True), set()
     for _ in range(40):
         seen |= {l for l in labels if s.placement(l) == "visible"}
@@ -482,23 +482,24 @@ def flow_e():
 def flow_f():
     choose("World Version", lambda n: n == "26.2", "f-version")
     edit_seed("1234567890", "enter")
-    s = view("f-before", rows=("Status", "Seed Search"))
+    s = view("f-before", rows=("Status", "Seed Search", "Stop Search"))
     idle = s.value("Status")
     started = time.time()
     click(s.button("Seed Search"))
     for i in range(8):
-        s = view(f"f-running-{i}", rows=("Status", "Seed Search"))
+        s = view(f"f-running-{i}", rows=("Status", "Seed Search", "Stop Search"))
         status = s.value("Status")
         if status != idle and not re.search(r"Still asking|Asking", status):
             break
     check("f1. Search moves Status off idle to a running clock", status != idle and re.search(r"\d+:\d\d", status) is not None,
           f"idle={idle!r} now={status!r} after {time.time() - started:.0f} s", s)
-    button = s.button("Seed Search")[0]
-    check("f2. Stop shows while searching", button == "Stop", f"button={button!r}", s)
-    click(s.button("Seed Search"))
-    s = view("f-stopped", rows=("Status", "Seed Search"))
-    status, button = s.value("Status"), s.button("Seed Search")[0]
-    check("f3. Stop stops and Search returns", "stopped" in status.lower() and button == "Search", f"status={status!r} button={button!r}", s)
+    stop = s.button("Stop Search")[0]
+    check("f2. Stop is available while searching", stop == "Stop", f"stop={stop!r}", s)
+    click(s.button("Stop Search"))
+    s = view("f-stopped", rows=("Status", "Seed Search", "Stop Search"))
+    status, search, stop = s.value("Status"), s.button("Seed Search")[0], s.button("Stop Search")[0]
+    check("f3. Stop stops and both buttons stay available", "stopped" in status.lower() and search == "Search" and stop == "Stop",
+          f"status={status!r} search={search!r} stop={stop!r}", s)
 
 
 def flow_g():
@@ -547,7 +548,7 @@ def flow_i():
 
 def flow_j():
     edit_number("Search Radius", 2048)
-    s = view("j-search-before-leaving", rows=("Status", "Seed Search"))
+    s = view("j-search-before-leaving", rows=("Status", "Seed Search", "Stop Search"))
     click(s.button("Seed Search"))
     send("close", "leave", "wait 20")
     for _ in range(30):
@@ -556,15 +557,15 @@ def flow_j():
         time.sleep(1)
     else:
         raise Abort("never left the server during search")
-    s = view("j-offline", rows=("Status", "Seed Search"))
-    button = s.button("Seed Search")[0]
+    s = view("j-offline", rows=("Status", "Seed Search", "Stop Search"))
+    button = s.button("Stop Search")[0]
     check("j1. Stop remains visible after leaving the server", button == "Stop", f"button={button!r}", s)
     if button != "Stop":
         raise Abort("no offline Stop button")
-    click(s.button("Seed Search"))
-    s = view("j-stopped-offline", rows=("Status",))
+    click(s.button("Stop Search"))
+    s = view("j-stopped-offline", rows=("Status", "Seed Search", "Stop Search"))
     status = s.value("Status")
-    check("j2. Stop works outside a world", "stopped" in status.lower() and s.find("Seed Search") is None,
+    check("j2. Stop works outside a world", "stopped" in status.lower() and s.find("Seed Search") is not None and s.find("Stop Search") is not None,
           f"status={status!r}; offline search action present={s.find('Seed Search') is not None}", s)
 
 
@@ -588,9 +589,9 @@ def flow_h():
     check("h. a different server starts without the seed", read(KEY_B, "seed.txt") is None and "empty" in box and read(KEY_A, "seed.txt") == "1234567890"
           and kind.startswith("Auto"), f"{KEY_B}/seed.txt={read(KEY_B, 'seed.txt')!r} box={box!r} server type={kind!r} "
           f"{KEY_A}/seed.txt={read(KEY_A, 'seed.txt')!r}", s)
-    s = view("h-search-restored", rows=("Seed Search",))
-    button = s.button("Seed Search")[0]
-    check("h1. Search returns after joining a world", button == "Search", f"button={button!r}", s)
+    s = view("h-search-restored", rows=("Seed Search", "Stop Search"))
+    search, stop = s.button("Seed Search")[0], s.button("Stop Search")[0]
+    check("h1. Search is available after joining a world", search == "Search" and stop == "Stop", f"search={search!r} stop={stop!r}", s)
 
 
 def main():

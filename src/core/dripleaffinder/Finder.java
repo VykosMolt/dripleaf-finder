@@ -277,7 +277,7 @@ public final class Finder {
             for (Map.Entry<BlockPos, Integer> tile : lush.entrySet()) {
                 BlockPos pos = tile.getKey();
                 if (flatDistance(pos, here) > LUSH_PING || !memory.lushPinged.add(pos)) continue;
-                String text = lushText(pos, tile.getValue());
+                String text = "Ping: " + lushText(pos, tile.getValue());
                 message(text);
                 Compat.toast(mc, text);
             }
