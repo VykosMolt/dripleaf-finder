@@ -66,14 +66,14 @@ public final class Seeds {
             Finder.message("Join a world first: the seed is kept per server.");
             return;
         }
+        if (Objects.equals(seed, Data.read(file(key, "seed.txt")))) return;
         try {
             String before = seed(key);
             write(key, "seed.txt", seed);
             seedChanged(key, before);
             String cracked = Data.read(file(key, "seedcracker.txt"));
-            Finder.message(seed == null ? "Typed seed cleared for " + key + (cracked != null ? "; SeedcrackerX's " + cracked + " is used." : ".")
-                : "Seed " + seed + " saved for " + key + ". /dripleaf search looks around you (radius " + SeedSearch.DEFAULT_RADIUS
-                    + ", or /dripleaf search <radius>).");
+            Finder.message(seed == null ? "World Seed cleared for " + key + (cracked != null ? "; SeedcrackerX's " + cracked + " is used." : ".")
+                : "Seed " + seed + " saved for " + key + ".");
         } catch (IOException e) {
             Finder.message("Could not save the seed: " + e.getMessage());
         }
@@ -92,7 +92,7 @@ public final class Seeds {
         }
         if (typed != null && !typed.equals(seed)) {
             Finder.message(source + " found the world seed " + seed + "; the seed typed for " + key + " (" + typed
-                + ") stays in use (/dripleaf seed clear to use " + source + "'s).");
+                + ") stays in use (clear World Seed to use " + source + "'s).");
             return;
         }
         if (seed.equals(before)) {
@@ -106,7 +106,7 @@ public final class Seeds {
 
     void showSeed() {
         String key = key(), typed = typedSeed(), cracked = Data.read(file(key, "seedcracker.txt"));
-        Finder.message(key == null ? "Join a world first." : typed == null && cracked == null ? "No seed for " + key + ". /dripleaf seed <seed>"
+        Finder.message(key == null ? "Join a world first." : typed == null && cracked == null ? "No seed for " + key + ". Set World Seed."
             : "Seed for " + key + ": " + seed() + (typed != null ? " (typed" + (cracked != null && !cracked.equals(typed)
                 ? "; SeedcrackerX found " + cracked : "") + ")" : " (from SeedcrackerX)"));
     }
@@ -117,7 +117,7 @@ public final class Seeds {
         String server = key == null ? null : finder.serverVersion.reported(key);
         if (server != null && !server.isEmpty()) return new String[] {server, "reported by the server"};
         return new String[] {Versions.client(), server == null ? "this client's"
-            : "this client's: the server did not say which; /dripleaf version sets it"};
+            : "this client's: the server did not say which; World Version sets it"};
     }
 
     public String typedVersion() {
@@ -135,6 +135,7 @@ public final class Seeds {
             Finder.message("No seed search for " + version + ": " + Searchers.supported() + ".");
             return;
         }
+        if (Objects.equals(version, Data.read(file(key, "version.txt")))) return;
         try {
             write(key, "version.txt", version);
             showVersion();
@@ -145,6 +146,6 @@ public final class Seeds {
 
     void showVersion() {
         String[] v = generationVersion();
-        Finder.message("Seed searches use " + v[0] + " world generation (" + v[1] + "). /dripleaf version <version|auto>");
+        Finder.message("Seed searches use " + v[0] + " world generation (" + v[1] + ").");
     }
 }

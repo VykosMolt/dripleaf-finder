@@ -92,7 +92,7 @@ public final class SeedSearch {
             int fits = 0;
             for (int r = MenuModel.MIN_RADIUS; r <= MAX_RADIUS; r += MenuModel.RADIUS_STEP) if (SearchRun.serverMb(r) <= budget) fits = r;
             refuse("Not enough memory for radius " + radius + " (" + SearchRun.serverMb(radius) + " MB; Search Memory and free memory allow "
-                + Math.max(0, budget) + " MB). " + (fits > 0 ? "Radius " + fits + " fits." : "Close other programs first."), fromCommand);
+                + Math.max(0, budget) + " MB). " + (fits > 0 ? "A Search Radius of " + fits + " fits." : "Close other programs first."), fromCommand);
             return;
         }
         boolean both = 2L * SearchRun.serverMb(radius) <= budget;
