@@ -161,9 +161,9 @@ grep -qF -- "- dripleaf-finder $EXPECT" "$LOG" 2>/dev/null || PROBLEMS="$PROBLEM
 LOADED="$(grep -a -m1 -oP 'SMOKE mod jar: \K.*' "$LOG" 2>/dev/null)"
 [ -z "${SMOKE_MOD:-}" ] || cmp -s "$LOADED" "$SMOKE_MOD" || PROBLEMS="$PROBLEMS; the loaded jar ${LOADED:-?} is not $SMOKE_MOD"
 case "$MODE" in
-  planted) grep -qF '[Dripleaf] Spliced small dripleaf top half at 4 101 8' "$LOG" || PROBLEMS="$PROBLEMS; no chat line" ;;
-  search) grep -qF '[Dripleaf] Spliced small dripleaf top half from the seed at' "$LOG" || PROBLEMS="$PROBLEMS; no announcement in chat" ;;
-  realworld) case "$RESULT" in *SPLICED*) grep -qF "[Dripleaf] Spliced small dripleaf top half at " "$LOG" || PROBLEMS="$PROBLEMS; no live chat line" ;; esac ;;
+  planted) grep -qF '[AUTISM] Spliced small dripleaf top half at 4 101 8' "$LOG" || PROBLEMS="$PROBLEMS; no chat line" ;;
+  search) grep -qF '[AUTISM] Spliced small dripleaf top half from the seed at' "$LOG" || PROBLEMS="$PROBLEMS; no announcement in chat" ;;
+  realworld) case "$RESULT" in *SPLICED*) grep -qF "[AUTISM] Spliced small dripleaf top half at " "$LOG" || PROBLEMS="$PROBLEMS; no live chat line" ;; esac ;;
 esac
 SHOT="$(ls -t "$RUN"/screenshots/*.png 2>/dev/null | head -1)"
 PIXELS=""

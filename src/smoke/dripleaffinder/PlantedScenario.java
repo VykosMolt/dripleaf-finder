@@ -1,14 +1,16 @@
 package dripleaffinder;
 
+import autismclient.mixin.accessor.AutismChatComponentAccessor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
 
 final class PlantedScenario implements Scenario {
+    private static final String FIRST_CHAT = "Predicted at 16 64 16", SECOND_CHAT = "Predicted at 32 64 32";
     private final Smoke smoke;
     private final BlockPos target, negative;
     private final double[] camera;
-    private int foundAt = -1, arrivedAt = -1;
+    private int foundAt = -1, arrivedAt = -1, chatAt = -1;
 
     PlantedScenario(Smoke smoke, BlockPos target, BlockPos negative, double[] camera) {
         this.smoke = smoke;
@@ -27,8 +29,21 @@ final class PlantedScenario implements Scenario {
                 smoke.shoot(mc, "FAIL reported the half outside lush caves at " + negative.getX() + " " + negative.getY() + " " + negative.getZ());
                 return;
             }
+            if (chatAt < 0) {
+                Finder.message(FIRST_CHAT);
+                Finder.message(SECOND_CHAT);
+                chatAt = ticks;
+                return;
+            }
+            if (ticks - chatAt < 2) return;
+            var messages = ((AutismChatComponentAccessor) mc.gui.hud.getChat()).autism$getAllMessages().stream()
+                .map(line -> line.content().getString()).toList();
+            if (!messages.contains("[AUTISM] " + FIRST_CHAT) || !messages.contains("[AUTISM] " + SECOND_CHAT)) {
+                smoke.shoot(mc, "FAIL native chat did not keep both prediction messages");
+                return;
+            }
             smoke.shoot(mc, "PASS reported " + (foundAt - smoke.joinedAt) / 20 + " s after joining"
-                + (negative != null ? "; the half outside lush caves was not" : ""));
+                + (negative != null ? "; the half outside lush caves was not" : "") + "; native chat kept both prediction messages");
         } else if (ticks - smoke.joinedAt > 20 * 90) {
             smoke.shoot(mc, "FAIL " + (foundAt < 0 ? "not reported" : "never teleported") + ": " + diagnose(mc, finder));
         }

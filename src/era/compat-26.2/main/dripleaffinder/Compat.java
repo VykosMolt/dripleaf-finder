@@ -1,5 +1,6 @@
 package dripleaffinder;
 
+import autismclient.util.AutismClientMessaging;
 import java.io.IOException;
 import java.nio.file.Path;
 import net.minecraft.client.Minecraft;
@@ -45,7 +46,7 @@ final class Compat {
     }
 
     static void chat(Minecraft mc, String text) {
-        mc.gui.hud.getChat().addClientSystemMessage(Component.literal("[Dripleaf] " + text));
+        AutismClientMessaging.sendPrefixed(text);
     }
 
     static void toast(Minecraft mc, String text) {
