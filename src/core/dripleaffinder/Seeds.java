@@ -4,8 +4,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.AtomicMoveNotSupportedException;
-import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
@@ -51,19 +49,7 @@ public final class Seeds {
         Path target = file(key, name);
         Files.createDirectories(target.getParent());
         if (value == null) Files.deleteIfExists(target);
-        else {
-            Path part = Files.createTempFile(target.getParent(), name, ".part");
-            try {
-                Files.writeString(part, value + "\n");
-                try {
-                    Files.move(part, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-                } catch (AtomicMoveNotSupportedException e) {
-                    Files.move(part, target, StandardCopyOption.REPLACE_EXISTING);
-                }
-            } finally {
-                Files.deleteIfExists(part);
-            }
-        }
+        else Data.write(target, List.of(value));
         if (key.equals(cachedKey)) cached.put(name, Data.read(file(key, name)));
     }
 
@@ -78,6 +64,7 @@ public final class Seeds {
 
     Path resultsFolder() {
         String key = key();
+        if (key != null && typedVersion() == null && finder.serverVersion.asking(key)) return null;
         return key == null ? null : resultsFolder(Finder.DATA.resolve(key), seed(key), generationVersion()[0]);
     }
 

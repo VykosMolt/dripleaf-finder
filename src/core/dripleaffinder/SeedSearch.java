@@ -316,8 +316,9 @@ public final class SeedSearch {
     }
 
     void tick(Minecraft mc) {
-        if (!running() || ticks++ % 20 != 0) return;
-        announceMissed(mc);
+        if (ticks++ % 20 != 0) return;
+        if (!missed.isEmpty()) announceMissed(mc);
+        if (!running()) return;
         Setup pending = setup;
         if (pending != null) {
             boolean complete = pending.complete;
@@ -403,6 +404,11 @@ public final class SeedSearch {
                 + Guidance.text(pos.getX(), pos.getZ(), h[0], h[2], h[3]));
         }
         missed.clear();
+        finder.markPredictionsAnnounced();
+    }
+
+    boolean waitingToAnnounce(Path folder) {
+        return !missed.isEmpty() && Objects.equals(this.folder, folder);
     }
 
     static int unchecked(String status) {
@@ -447,8 +453,8 @@ public final class SeedSearch {
         if (folder == null) return "Could not save results: no generation selected";
         try {
             Files.createDirectories(folder);
-            if (!lush.isEmpty()) Files.write(folder.resolve("lush.tsv"), mergeLush(Data.lines(folder.resolve("lush.tsv")), lush));
-            Files.write(folder.resolve("predictions.tsv"), mergePredictions(Data.lines(folder.resolve("predictions.tsv")), hits, center, radius, spawn,
+            if (!lush.isEmpty()) Data.write(folder.resolve("lush.tsv"), mergeLush(Data.lines(folder.resolve("lush.tsv")), lush));
+            Data.write(folder.resolve("predictions.tsv"), mergePredictions(Data.lines(folder.resolve("predictions.tsv")), hits, center, radius, spawn,
                 replaceArea));
         } catch (IOException e) {
             return "Could not save the search results: " + e.getMessage();
@@ -456,7 +462,7 @@ public final class SeedSearch {
         boolean here = key.equals(finder.memory.key()) && folder.equals(finder.seeds.resultsFolder());
         if (here) finder.reloadData();
         announceMissed(Minecraft.getInstance());
-        if (!missed.isEmpty() && here) finder.announceSavedOnReturn(folder);
+        if (!missed.isEmpty()) finder.announceSavedOnReturn(folder);
         else if (here) finder.markPredictionsAnnounced();
         return null;
     }

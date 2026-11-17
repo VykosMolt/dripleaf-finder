@@ -125,6 +125,7 @@ public final class Finder {
     }
 
     private void announcePredictions(Minecraft mc) {
+        if (search.waitingToAnnounce(loadedFolder)) return;
         if (!predicted.isEmpty() && !memory.predictionsAnnounced && mc.player != null) {
             memory.predictionsAnnounced = true;
             BlockPos here = mc.player.blockPosition();
