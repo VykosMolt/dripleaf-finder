@@ -11,7 +11,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 
 final class SplicedDripleaf extends SimpleModule {
     private final MenuModel model;
-    private boolean synced;
+    private boolean inWorld;
 
     SplicedDripleaf(MenuModel model) {
         super("spliced", "Spliced Dripleaf Finder", "Finds small dripleaf top halves that have no bottom half.");
@@ -35,9 +35,9 @@ final class SplicedDripleaf extends SimpleModule {
         add(new ActionSetting("stop", "Seed Search", model::stop).buttonLabel("Stop").visibleWhen(model::searching));
         model.onEnabledChanged(this::setEnabledSilently);
         ClientTickEvents.END_CLIENT_TICK.register(mc -> {
-            if (synced) return;
-            synced = true;
-            model.setEnabled(isEnabled());
+            boolean joined = mc.player != null;
+            if (joined && !inWorld) model.setEnabled(isEnabled());
+            inWorld = joined;
         });
     }
 
