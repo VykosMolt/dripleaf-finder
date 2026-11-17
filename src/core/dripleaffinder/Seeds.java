@@ -61,10 +61,7 @@ public final class Seeds {
 
     private void seedChanged(String key, String before) {
         if (Objects.equals(before, seed(key))) return;
-        if (finder.search.searching(key)) {
-            finder.search.stop(false);
-            finder.search.results.put(key, "Stopped: seed changed");
-        }
+        finder.search.stopFor(key, "Stopped: seed changed");
         Path saved = Finder.DATA.resolve(key).resolve("predictions.tsv");
         try {
             if (before != null && Files.exists(saved)) {
@@ -173,6 +170,7 @@ public final class Seeds {
         if (Objects.equals(version, read(key, "version.txt"))) return;
         try {
             write(key, "version.txt", version);
+            finder.search.stopFor(key, "Stopped: version changed");
             showVersion();
         } catch (IOException e) {
             Finder.message("Could not save the version: " + e.getMessage());

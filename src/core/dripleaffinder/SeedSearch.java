@@ -252,6 +252,12 @@ public final class SeedSearch {
             : " The " + hits.size() + " spliced top halves found so far are saved."), fromCommand);
     }
 
+    void stopFor(String key, String status) {
+        if (!searching(key)) return;
+        stop(false);
+        results.put(key, status);
+    }
+
     private void kill(List<SearchRun> stopping) {
         for (SearchRun run : stopping) {
             run.kill();
