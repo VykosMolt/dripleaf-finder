@@ -184,7 +184,7 @@ public final class SeedSearch {
             }
         } catch (IOException | NumberFormatException e) {
         }
-        return Math.min(Math.max(1, finder.settings.memoryGb) * 1024L, free);
+        return Math.min(finder.settings.memoryGb() * 1024L, free);
     }
 
     void startOrQueue(Minecraft mc, String key) {

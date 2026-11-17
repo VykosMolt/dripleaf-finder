@@ -28,7 +28,7 @@ final class SplicedDripleaf extends SimpleModule {
             .description("Auto: from the server's brand.").requiresWorld().keepOnReset());
         add(new IntSetting("radius", "Search Radius", MenuModel.DEFAULT_RADIUS, MenuModel.MIN_RADIUS, MenuModel.MAX_RADIUS, MenuModel.RADIUS_STEP)
             .unit("blocks"));
-        add(new IntSetting("memory", "Search Memory", Math.min(4, model.maxMemoryGb()), 1, model.maxMemoryGb(), 1).unit("GB"));
+        add(new IntSetting("memory", "Search Memory", model.defaultMemoryGb(), 1, model.maxMemoryGb(), 1).unit("GB"));
         add(new StringSetting("status", "Status", "").readonlySummary());
         add(new ActionSetting("search", "Seed Search", model::search).buttonLabel("Search").requiresWorld()
             .visibleWhen(() -> !model.searching()));

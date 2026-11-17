@@ -54,6 +54,8 @@ public interface MenuModel {
 
     int memoryGb();
 
+    int defaultMemoryGb();
+
     int maxMemoryGb();
 
     void setMemoryGb(int gb);

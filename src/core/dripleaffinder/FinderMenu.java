@@ -1,7 +1,5 @@
 package dripleaffinder;
 
-import com.sun.management.OperatingSystemMXBean;
-import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
@@ -10,13 +8,10 @@ import net.minecraft.client.Minecraft;
 final class FinderMenu implements MenuModel {
     private final Finder finder;
     private final Settings settings;
-    private final int maxMemoryGb;
 
     FinderMenu(Finder finder) {
         this.finder = finder;
         settings = finder.settings;
-        long bytes = ((OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean()).getTotalMemorySize();
-        maxMemoryGb = Math.max(1, (int) (bytes >> 30) - 2);
     }
 
     public boolean enabled() {
@@ -117,16 +112,20 @@ final class FinderMenu implements MenuModel {
     }
 
     public int memoryGb() {
-        return Math.max(1, Math.min(maxMemoryGb, settings.memoryGb));
+        return settings.memoryGb();
+    }
+
+    public int defaultMemoryGb() {
+        return Settings.memoryGb(null, Settings.TOTAL_MEMORY);
     }
 
     public int maxMemoryGb() {
-        return maxMemoryGb;
+        return Settings.maxMemoryGb(Settings.TOTAL_MEMORY);
     }
 
     public void setMemoryGb(int gb) {
-        gb = Math.max(1, Math.min(maxMemoryGb, gb));
-        if (settings.memoryGb == gb) return;
+        gb = Math.max(1, Math.min(maxMemoryGb(), gb));
+        if (settings.memoryGb() == gb) return;
         settings.memoryGb = gb;
         settings.save();
     }

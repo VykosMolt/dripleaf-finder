@@ -98,8 +98,14 @@ public final class ClientCheck {
         expect("host names", java.util.List.of(DataKey.host("Java.HugoSMP.net:25565"), DataKey.host("hugosmp.net."),
                 DataKey.host(null), DataKey.host(".."), DataKey.host("[::1]:25565")),
             java.util.List.of("java.hugosmp.net", "hugosmp.net", "local", "unknown", "unknown"));
+        long gib = 1L << 30;
+        expect("search memory", java.util.Arrays.asList(Settings.memoryGb(null, 32 * gib), Settings.memoryGb(null, 15 * gib + gib / 2),
+                Settings.memoryGb(null, 8 * gib), Settings.memoryGb(null, 4 * gib), Settings.memoryGb(null, 2 * gib), Settings.memoryGb(12, 8 * gib),
+                Settings.memoryGb(0, 8 * gib), Settings.memoryGb(5, 16 * gib), SeedSearch.serversThatFit(Settings.memoryGb(null, 15 * gib) * 1024L,
+                    MenuModel.DEFAULT_RADIUS)),
+            java.util.Arrays.asList(16, 7, 4, 2, 1, 6, 1, 5, 2));
 
         System.out.println("CLIENT CHECK PASSED: 2 azalea trees, trunkless leaves dropped; data rows, box edges, memory, data keys, host names,"
-            + " server versions, server types, folia guidance, splice guidance");
+            + " server versions, server types, folia guidance, splice guidance, search memory");
     }
 }
