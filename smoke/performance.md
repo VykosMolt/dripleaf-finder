@@ -97,6 +97,11 @@ alone are insufficient. ClientCheck verifies retention on an unchanged launch,
 world removal, and invalidation after changing each jar while keeping its size
 and modification time identical.
 
+The 1.3.0 directory-classpath fallback conservatively disables cache reuse for
+launches with directory inputs. This avoids recursively fingerprinting a game
+directory that can itself contain the search cache and previous search output.
+The measured jar-only launches retain the content-hash policy above.
+
 Cold and warm launches use fresh worlds and the same retained remap directory.
 Both pairs have exactly matching sorted hit/lush/spawn output (ascending order,
 0 hits and 12 lush rows on 1.21.11; 0 hits and 20 lush rows on 1.21.3).

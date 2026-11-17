@@ -1,5 +1,7 @@
 Recovery verification, 17 November 2026
 
+This records the earlier 1.2.0 release at `625dcee`. The expanded 1.3.0 release is documented in [generations.md](generations.md).
+
 The release is one AUTISM 5.3 addon for Minecraft 26.2, bundling the 1.21.11 and 1.21.3 search engines. Work was recovered from Claude session `f024d516-abe3-4df9-a259-fe92aec24786`.
 
 The build and existing self/client checks passed on all three versions. Searches through the 26.2 client returned the expected results:
