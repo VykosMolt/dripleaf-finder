@@ -67,11 +67,11 @@ final class RealWorldScenario implements Scenario {
             return;
         }
         String last = finder.search.lastResult;
-        boolean done = last != null && last.startsWith("Seed search done");
+        boolean done = last != null && last.startsWith("Done:");
         if (done && finder.search.hits.isEmpty() && !widened && radius < 1500) {
             widened = true;
             finder.search.lastResult = null;
-            finder.search.start(mc, 1500);
+            finder.search.start(mc, 1500, false);
             return;
         }
         if (!done || finder.search.hits.isEmpty()) {

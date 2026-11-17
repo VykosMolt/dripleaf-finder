@@ -11,7 +11,7 @@ the<BasePluginExtension>().archivesName = "dripleaf-finder"
 
 main.java.setSrcDirs(listOf(repo.resolve("src/core")) + eras.map { repo.resolve("src/era/$it/main") })
 if (searchOnly) {
-    main.java.include(listOf("Searcher", "SearchCompat", "Splice", "WorldCompat").map { "dripleaffinder/$it.java" })
+    main.java.include(listOf("Searcher", "SearchCompat", "SpawnCompat", "Splice", "WorldCompat").map { "dripleaffinder/$it.java" })
     main.resources.setSrcDirs(listOf(repo.resolve("src/search-resources")))
 } else {
     main.resources.setSrcDirs(listOf(repo.resolve("src/resources")) + eras.map { repo.resolve("src/era/$it/resources") })

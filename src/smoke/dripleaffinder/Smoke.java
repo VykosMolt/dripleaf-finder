@@ -75,7 +75,7 @@ public final class Smoke implements ClientModInitializer {
             pushSeed(Long.parseLong(seed));
         } else {
             finder.seeds.setSeed(seed);
-            finder.search.start(mc, radius);
+            finder.search.start(mc, radius, false);
         }
     }
 

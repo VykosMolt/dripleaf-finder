@@ -3,7 +3,6 @@ package dripleaffinder;
 import com.sun.management.OperatingSystemMXBean;
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.function.Consumer;
 import net.minecraft.client.Minecraft;
@@ -17,7 +16,7 @@ final class FinderMenu implements MenuModel {
         this.finder = finder;
         settings = finder.settings;
         long bytes = ((OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean()).getTotalMemorySize();
-        maxMemoryGb = Math.max(1, (int) (bytes >> 30) / 2);
+        maxMemoryGb = Math.max(1, (int) (bytes >> 30) - 2);
     }
 
     public boolean enabled() {
@@ -78,8 +77,6 @@ final class FinderMenu implements MenuModel {
 
     public List<String> versions() {
         List<String> releases = new ArrayList<>(Searchers.versions());
-        List<String> order = List.copyOf(Versions.RELEASES.keySet());
-        releases.sort(Comparator.comparingInt(order::indexOf).reversed());
         releases.add(0, AUTO);
         return releases;
     }
@@ -120,8 +117,7 @@ final class FinderMenu implements MenuModel {
     }
 
     public String status() {
-        if (searching()) return "Searching...";
-        return finder.search.lastResult == null ? "No search yet" : finder.search.lastResult;
+        return finder.search.status();
     }
 
     public boolean searching() {
@@ -129,7 +125,7 @@ final class FinderMenu implements MenuModel {
     }
 
     public void search() {
-        finder.search.start(Minecraft.getInstance(), radius());
+        finder.search.start(Minecraft.getInstance(), radius(), false);
     }
 
     public void stop() {

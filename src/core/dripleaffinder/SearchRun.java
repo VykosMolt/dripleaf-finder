@@ -3,8 +3,10 @@ package dripleaffinder;
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.io.UncheckedIOException;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -16,12 +18,14 @@ import java.util.stream.Stream;
 import net.minecraft.core.BlockPos;
 
 final class SearchRun {
-    static final int EXIT_WAIT_SECONDS = 30, DELETE_ATTEMPTS = 8;
+    static final int EXIT_WAIT_SECONDS = 30, DELETE_ATTEMPTS = 8, OUT_OF_MEMORY_EXIT = 3;
+    static final List<String> ORDERS = List.of("asc", "desc");
 
     final String order;
     final Path dir;
     final Process process;
     boolean finished, ok;
+    String progress = "starting";
     private long read;
 
     private SearchRun(String order, Path dir, Process process) {
@@ -30,9 +34,21 @@ final class SearchRun {
         this.process = process;
     }
 
+    static int heapMb(int radius) {
+        return 1024 + radius / 3;
+    }
+
+    static int serverMb(int radius) {
+        return heapMb(radius) + 800;
+    }
+
+    static Path searches(Path gameDir) {
+        return gameDir.resolve("dripleaf-finder").resolve("search");
+    }
+
     static SearchRun start(Path gameDir, String seed, String order, BlockPos center, int radius, boolean floors, Searchers.Launch launch)
             throws IOException {
-        Path searches = gameDir.resolve("dripleaf-finder").resolve("search"), dir = searches.resolve(order);
+        Path searches = searches(gameDir), dir = searches.resolve(order);
         try {
             delete(dir);
             Files.createDirectories(dir);
@@ -63,8 +79,9 @@ final class SearchRun {
             spec.store(out, null);
         }
         Files.writeString(dir.resolve("results.tsv"), "");
-        List<String> command = List.of(ProcessHandle.current().info().command().orElse("java"), "-Xmx" + (1536 + radius) + "M",
-            "-Dfabric.gameJarPath=" + launch.serverJar(), "-Dfabric.addMods=" + String.join(File.pathSeparator, launch.mods().stream().map(Path::toString).toList()),
+        List<String> command = List.of(ProcessHandle.current().info().command().orElse("java"), "-Xmx" + heapMb(radius) + "M",
+            "-XX:+ExitOnOutOfMemoryError", "-Dfabric.gameJarPath=" + launch.gameJar(),
+            "-Dfabric.addMods=" + String.join(File.pathSeparator, launch.mods().stream().map(Path::toString).toList()),
             "-Ddripleaffinder.search=" + dir.resolve("search.properties"), "-cp", String.join(File.pathSeparator, launch.classpath()),
             "net.fabricmc.loader.impl.launch.knot.KnotServer", "nogui");
         Process process = new ProcessBuilder(command).directory(dir.toFile()).redirectErrorStream(true)
@@ -72,8 +89,23 @@ final class SearchRun {
         return new SearchRun(order, dir, process);
     }
 
+    static void deleteFallbacks(Path gameDir) {
+        try (DirectoryStream<Path> dirs = Files.newDirectoryStream(searches(gameDir), "{asc,desc}-*")) {
+            for (Path dir : dirs) {
+                try {
+                    deleteOnce(dir);
+                } catch (IOException stillOpen) {
+                }
+            }
+        } catch (IOException e) {
+        }
+    }
+
     void kill() {
         process.destroyForcibly();
+    }
+
+    void awaitExit() {
         try {
             process.waitFor(EXIT_WAIT_SECONDS, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
@@ -82,12 +114,10 @@ final class SearchRun {
     }
 
     void deleteWorld() {
+        awaitExit();
         try {
-            process.waitFor(EXIT_WAIT_SECONDS, TimeUnit.SECONDS);
             delete(dir.resolve("world"));
         } catch (IOException e) {
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
         }
     }
 
@@ -112,6 +142,8 @@ final class SearchRun {
         if (!Files.exists(path)) return;
         try (Stream<Path> all = Files.walk(path)) {
             for (Path p : all.sorted(Comparator.reverseOrder()).toList()) Files.deleteIfExists(p);
+        } catch (UncheckedIOException e) {
+            throw e.getCause();
         }
     }
 

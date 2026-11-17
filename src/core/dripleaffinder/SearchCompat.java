@@ -1,5 +1,6 @@
 package dripleaffinder;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerChunkCache;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.biome.Biomes;
@@ -26,6 +27,14 @@ final class SearchCompat {
 
     static ChunkAccess decorate(ServerLevel level, int x, int z) {
         return level.getChunkSource().getChunk(x, z, ChunkStatus.FEATURES, true);
+    }
+
+    static boolean decoratedAlready(ServerLevel level, int x, int z) {
+        return level.getChunkSource().getChunk(x, z, ChunkStatus.EMPTY, true).getPersistedStatus().isAfter(ChunkStatus.CARVERS);
+    }
+
+    static BlockPos spawn(ServerLevel level) {
+        return SpawnCompat.spawn(level);
     }
 
     static int minY(ChunkAccess chunk) {

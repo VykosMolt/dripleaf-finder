@@ -15,7 +15,10 @@ import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.Locale;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
@@ -26,27 +29,24 @@ final class Searchers {
     static final String MANIFEST = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
     static final Pattern LOADER_JARS = Pattern.compile(
         "(fabric-loader|sponge-mixin|asm|asm-analysis|asm-commons|asm-tree|asm-util|mixinextras-fabric|mixinextras-common)-.*\\.jar");
-    static final Pattern INTERMEDIARY = Pattern.compile("intermediary-.*\\.jar");
 
-    record Launch(Path serverJar, List<Path> mods, List<String> classpath) {
+    record Launch(Path gameJar, List<Path> mods, List<String> classpath) {
     }
 
+    @SuppressWarnings("unchecked")
     static Launch prepare(Path cache, String target) throws IOException {
+        if (target.equals(Versions.client())) {
+            Path game = ((List<Path>) FabricLoader.getInstance().getObjectShare().get("fabric-loader:inputGameJars")).get(0);
+            Path mod = FabricLoader.getInstance().getModContainer("dripleaf-finder").orElseThrow().getOrigin().getPaths().get(0);
+            return new Launch(game, List.of(mod, apiBase(cache)), List.of(System.getProperty("java.class.path").split(File.pathSeparator)));
+        }
         Path serverJar = serverJar(cache.resolve(target), target);
-        boolean own = target.equals(Versions.client());
         List<String> classpath = new ArrayList<>();
         for (String entry : System.getProperty("java.class.path").split(File.pathSeparator)) {
-            String name = Path.of(entry).getFileName().toString();
-            if (LOADER_JARS.matcher(name).matches() || own && INTERMEDIARY.matcher(name).matches()) classpath.add(entry);
+            if (LOADER_JARS.matcher(Path.of(entry).getFileName().toString()).matches()) classpath.add(entry);
         }
-        Path modJar;
-        if (own) {
-            modJar = FabricLoader.getInstance().getModContainer("dripleaf-finder").orElseThrow().getOrigin().getPaths().get(0);
-        } else {
-            modJar = bundled(cache.resolve("searchers"), target);
-            if (target.startsWith("1.")) classpath.add(intermediary(cache.resolve(target), target).toString());
-        }
-        return new Launch(serverJar, List.of(modJar, apiBase(cache)), classpath);
+        if (target.startsWith("1.")) classpath.add(intermediary(cache.resolve(target), target).toString());
+        return new Launch(serverJar, List.of(bundled(cache.resolve("searchers"), target), apiBase(cache)), classpath);
     }
 
     static Path apiBase(Path cache) throws IOException {
@@ -66,11 +66,19 @@ final class Searchers {
     }
 
     static List<String> versions() {
+        Set<String> versions = new HashSet<>(Set.of(Versions.client()));
         try {
-            return resource("searchers/versions.tsv").stream().map(line -> line.split("\t")[0]).toList();
+            for (String line : resource("searchers/versions.tsv")) versions.add(line.split("\t")[0]);
         } catch (IOException e) {
-            return List.of();
         }
+        List<String> order = List.copyOf(Versions.RELEASES.keySet());
+        return versions.stream().sorted(Comparator.comparingInt(order::indexOf).reversed()).toList();
+    }
+
+    static String supported() {
+        List<String> v = versions();
+        String last = v.get(v.size() - 1);
+        return "this build searches " + (v.size() == 1 ? last : String.join(", ", v.subList(0, v.size() - 1)) + " and " + last) + " worlds";
     }
 
     static Path bundled(Path dir, String target) throws IOException {

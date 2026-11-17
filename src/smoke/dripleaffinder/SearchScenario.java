@@ -2,6 +2,8 @@ package dripleaffinder;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import net.minecraft.client.Minecraft;
 
 final class SearchScenario implements Scenario {
@@ -11,7 +13,8 @@ final class SearchScenario implements Scenario {
     private final double[] camera;
     private boolean started;
     private int arrivedAt = -1, authorityAt = -1;
-    private String notes = "";
+    private String notes = "", lastStatus;
+    private final Set<String> phases = new LinkedHashSet<>();
 
     SearchScenario(Smoke smoke, String[] args, double[] camera) {
         this.smoke = smoke;
@@ -37,14 +40,22 @@ final class SearchScenario implements Scenario {
             if (ticks - authorityAt >= 60) checkAuthority(mc, finder);
             return;
         }
+        if (finder.search.running()) {
+            String status = finder.search.status();
+            if (!status.equals(lastStatus)) {
+                System.out.println("SMOKE status: " + status);
+                lastStatus = status;
+                phases.add(status.substring(status.indexOf(": ") + 2).split("[ ,]")[0]);
+            }
+        }
         if (!smoke.searchDone(finder, arrivedAt)) {
             if (ticks - arrivedAt > 20 * 900) smoke.shoot(mc, "FAIL search still running after 15 min");
             return;
         }
         String last = finder.search.lastResult, saved = saved();
-        boolean ok = last != null && last.startsWith("Seed search done") && !finder.search.hits.isEmpty()
+        boolean ok = last != null && last.startsWith("Done:") && !finder.search.hits.isEmpty() && phases.contains("decorating")
             && finder.search.hits.keySet().stream().allMatch(pos -> saved.contains(pos.getX() + "\t" + pos.getY() + "\t" + pos.getZ() + "\ttop"));
-        smoke.shoot(mc, (ok ? "PASS " : "FAIL ") + notes + last + " Saved: " + saved.replace('\n', '|'));
+        smoke.shoot(mc, (ok ? "PASS " : "FAIL ") + notes + "status phases " + phases + "; " + last + " Saved: " + saved.replace('\n', '|'));
     }
 
     private void start(Minecraft mc, Finder finder) {
@@ -73,7 +84,7 @@ final class SearchScenario implements Scenario {
             smoke.shoot(mc, "FAIL " + notes + "seed now " + finder.seeds.seed() + ", search running " + finder.search.running());
             return;
         }
-        finder.search.start(mc, radius);
+        finder.search.start(mc, radius, false);
     }
 
     private static String saved() {

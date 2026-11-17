@@ -8,6 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -27,7 +28,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 
 public final class Searcher implements ModInitializer {
-    static final int BATCH = 256;
+    static final int BATCH = 256, SPAWN_SCAN = 12;
 
     @Override
     public void onInitialize() {
@@ -66,10 +67,17 @@ public final class Searcher implements ModInitializer {
             int radius = Integer.parseInt(spec.getProperty("radius"));
             ServerLevel level = server.overworld();
             long started = System.currentTimeMillis();
+            out.line("status", "finding lush caves");
             Set<Long> lush = lushChunks(level, x, z, radius);
             out.line("status", lush.size() + " lush cave chunks within " + radius + " blocks");
+            BlockPos spawn = SearchCompat.spawn(level);
+            int reach = startupReach(server, level, spawn);
+            Set<Long> startup = reach < 0 ? Set.of() : dilate(Set.of(key(spawn.getX() >> 4, spawn.getZ() >> 4)), reach + 1);
+            if (!Collections.disjoint(dilate(lush, 3), startup)) out.line("spawn", spawn.getX() + "\t" + spawn.getZ() + "\t" + (reach + 2) * 16);
+            lush.removeAll(startup);
             if (Boolean.parseBoolean(spec.getProperty("floors"))) floors(server, level, lush, out);
-            int hits = Boolean.parseBoolean(spec.getProperty("splices")) ? splices(server, level, lush, "desc".equals(spec.getProperty("order")), out) : 0;
+            int hits = Boolean.parseBoolean(spec.getProperty("splices"))
+                ? splices(server, level, lush, startup, "desc".equals(spec.getProperty("order")), out) : 0;
             out.line("done", hits + "\t" + (System.currentTimeMillis() - started) / 1000);
         } catch (Throwable t) {
             if (out != null) out.line("error", String.valueOf(t));
@@ -143,11 +151,28 @@ public final class Searcher implements ModInitializer {
         return new long[] {cells, summedY};
     }
 
-    static int splices(MinecraftServer server, ServerLevel level, Set<Long> lush, boolean descending, Out out) throws InterruptedException {
+    static int startupReach(MinecraftServer server, ServerLevel level, BlockPos spawn) {
+        int x = spawn.getX() >> 4, z = spawn.getZ() >> 4;
+        return server.submit(() -> {
+            int far = -1;
+            for (int dx = -SPAWN_SCAN; dx <= SPAWN_SCAN; dx++) {
+                for (int dz = -SPAWN_SCAN; dz <= SPAWN_SCAN; dz++) {
+                    if (SearchCompat.decoratedAlready(level, x + dx, z + dz)) far = Math.max(far, Math.max(Math.abs(dx), Math.abs(dz)));
+                }
+            }
+            return far;
+        }).join();
+    }
+
+    static int splices(MinecraftServer server, ServerLevel level, Set<Long> lush, Set<Long> startup, boolean descending, Out out)
+            throws InterruptedException {
         List<Long> decorate = new ArrayList<>(dilate(lush, 2)), report = new ArrayList<>(dilate(lush, 1));
+        decorate.removeAll(startup);
+        report.removeAll(dilate(startup, 1));
         Comparator<Long> order = Comparator.<Long>comparingInt(Searcher::x).thenComparingInt(Searcher::z);
         decorate.sort(descending ? order.reversed() : order);
         Map<Long, Long> placedBy = new HashMap<>(), removedBy = new HashMap<>();
+        out.line("status", "decorated 0 of " + decorate.size() + " chunks");
         for (int from = 0; from < decorate.size(); from += BATCH) {
             List<Long> batch = decorate.subList(from, Math.min(from + BATCH, decorate.size()));
             Set<Long> near = dilate(new HashSet<>(batch), 1);
@@ -168,8 +193,11 @@ public final class Searcher implements ModInitializer {
         List<BlockPos> hits = new ArrayList<>();
         List<BlockState> states = new ArrayList<>();
         long[] plants = new long[1];
-        for (int from = 0; from < report.size(); from += BATCH) {
-            List<Long> batch = report.subList(from, Math.min(from + BATCH, report.size()));
+        List<Long> scan = report.stream().sorted(order).toList();
+        Map<Long, List<BlockPos>> hitsIn = new HashMap<>();
+        Map<Long, List<BlockState>> statesIn = new HashMap<>();
+        for (int from = 0; from < scan.size(); from += BATCH) {
+            List<Long> batch = scan.subList(from, Math.min(from + BATCH, scan.size()));
             server.submit(() -> {
                 for (long k : batch) {
                     ChunkAccess chunk = SearchCompat.decorate(level, x(k), z(k));
@@ -178,11 +206,15 @@ public final class Searcher implements ModInitializer {
                         for (int i = 0; i < 4096; i++) if (Splice.isLeaf(section.getBlockState(i & 15, i >> 8, (i >> 4) & 15))) plants[0]++;
                     }
                     Splice.scan(chunk, false, at -> true, (at, state) -> {
-                        hits.add(at.immutable());
-                        states.add(state);
+                        hitsIn.computeIfAbsent(k, c -> new ArrayList<>()).add(at.immutable());
+                        statesIn.computeIfAbsent(k, c -> new ArrayList<>()).add(state);
                     });
                 }
             }).join();
+        }
+        for (long k : report) {
+            hits.addAll(hitsIn.getOrDefault(k, List.of()));
+            states.addAll(statesIn.getOrDefault(k, List.of()));
         }
         server.submit(() -> {
             for (BlockPos at : hits) level.setChunkForced(at.getX() >> 4, at.getZ() >> 4, true);

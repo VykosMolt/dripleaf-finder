@@ -190,11 +190,10 @@ public final class Finder {
     }
 
     private String whyEmpty(String none, String noneKnown) {
-        if (!settings.enabled) return none + ". The finder is off (/dripleaf on).";
+        if (!settings.enabled) return none + ". The finder is off.";
         if (level == null) return none + ". Join a world first.";
         if (!Compat.overworld(level)) return none + ". Only kept for the Overworld.";
-        return noneKnown + " for " + memory.key() + " yet. Set the world seed (World Seed, or /dripleaf seed <seed>)"
-            + " and run a seed search (Seed Search, or /dripleaf search).";
+        return noneKnown + " for " + memory.key() + " yet. Set World Seed and press Seed Search.";
     }
 
     public void listNearestLush() {
