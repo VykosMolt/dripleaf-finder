@@ -329,7 +329,7 @@ public final class SeedSearch {
                     missedLive = true;
                     return;
                 }
-                String guidance = Guidance.text(pos.getX(), pos.getZ(), f[4], first, then, finder.folia);
+                String guidance = Guidance.text(pos.getX(), pos.getZ(), f[4], first, then);
                 finder.addPrediction(new Prediction(pos, "top", f[4], null, true, first, then));
                 finder.announce("Spliced small dripleaf top half from the seed at " + pos.getX() + " " + pos.getY() + " " + pos.getZ()
                     + ", " + (int) Math.sqrt(pos.distSqr(mc.player.blockPosition())) + " blocks away: " + guidance);

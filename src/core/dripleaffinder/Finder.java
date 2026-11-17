@@ -37,7 +37,6 @@ public final class Finder {
     final Set<BlockPos> found = new HashSet<>();
     private final Set<LevelChunk> scanned = Collections.newSetFromMap(new WeakHashMap<>());
     final Map<BlockPos, Prediction> predicted = new HashMap<>();
-    boolean folia;
     private final Map<BlockPos, Integer> near = new HashMap<>();
     private final Map<BlockPos, Integer> lush = new HashMap<>();
     private final List<AABB> azaleas = new ArrayList<>();
@@ -123,7 +122,6 @@ public final class Finder {
         clearWorld();
         level = next;
         memory.enter(DataKey.of(Compat.serverAddress(mc), Compat.singleplayerWorld(mc)));
-        checkServerType();
         reloadData();
         if (!predicted.isEmpty() && !memory.predictionsAnnounced && mc.player != null) {
             memory.predictionsAnnounced = true;
@@ -135,16 +133,8 @@ public final class Finder {
         }
     }
 
-    void checkServerType() {
-        folia = ServerType.FOLIA.equals(seeds.serverType()[0]);
-    }
-
     String text(BlockPos pos) {
-        return predicted.get(pos).text(folia);
-    }
-
-    long candidates() {
-        return predicted.values().stream().filter(row -> !row.anyOrder()).count();
+        return predicted.get(pos).text();
     }
 
     void reloadData() {
@@ -238,7 +228,6 @@ public final class Finder {
         if (mc.level != level) enterWorld(mc, mc.level);
         if (ticks % 100 == 0) scanned.clear();
         if (ticks++ % 10 != 0) return;
-        checkServerType();
         boolean masked = settings.masked;
         found.removeIf(pos -> {
             LevelChunk chunk = Compat.loadedChunk(level, pos.getX() >> 4, pos.getZ() >> 4);

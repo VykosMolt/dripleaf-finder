@@ -214,7 +214,6 @@ public final class Seeds {
             Finder.message("Could not save the server type: " + e.getMessage());
             return;
         }
-        finder.checkServerType();
         String[] t = serverType();
         Finder.message("Server Type for " + key + ": " + t[0] + " (" + t[1] + ").");
     }

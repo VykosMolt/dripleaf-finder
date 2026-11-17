@@ -65,8 +65,8 @@ final class ServerTypeScenario implements Scenario {
             if (color == Finder.PREDICTED_COLOR) drawn[0]++;
         });
         String candidates = model.candidates(), text = finder.text(ordered);
-        String label = text.contains(Guidance.FOLIA_ODDS) && candidates.contains(Guidance.FOLIA_ODDS) ? "folia"
-            : text.contains("walk in from") && !candidates.contains("Folia") ? "paper" : "mixed";
+        String type = candidates.replaceFirst("^\\d+ here · ", "").replace(" (auto)", "");
+        String label = !text.contains("walk in from") ? "mixed" : type.equals("Folia") ? "folia" : type.equals("Paper/Spigot") ? "paper" : "mixed";
         return finder.predicted.size() + " drawn " + drawn[0] + " " + label + ", status \"" + model.status() + "\", candidates \"" + candidates
             + "\", \"" + text + "\"";
     }

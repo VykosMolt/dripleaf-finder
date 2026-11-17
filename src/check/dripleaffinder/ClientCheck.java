@@ -57,12 +57,12 @@ public final class ClientCheck {
             java.util.List.of("play.example.org", "local-new_world__2_", "local", "local", "play.example.org_25601", "play.example.org"));
 
         expect("splice guidance", java.util.List.of(
-            Guidance.text(3705, 62, "air", "231,3", "232,3", false),
-            Guidance.text(3705, 62, "cave_air", "230,2", "231,3", false),
-            Guidance.text(3705, 62, "smooth_basalt", "231,3", "231,3", false),
-            Guidance.text(3705, 62, "smooth_basalt", "-", "-", false),
-            Guidance.text(3705, 62, "air", "231,3", "-", false),
-            Guidance.text(3705, 62, "air", "231,3", "x,3", false),
+            Guidance.text(3705, 62, "air", "231,3", "232,3"),
+            Guidance.text(3705, 62, "cave_air", "230,2", "231,3"),
+            Guidance.text(3705, 62, "smooth_basalt", "231,3", "231,3"),
+            Guidance.text(3705, 62, "smooth_basalt", "-", "-"),
+            Guidance.text(3705, 62, "air", "231,3", "-"),
+            Guidance.text(3705, 62, "air", "231,3", "x,3"),
             String.valueOf(Guidance.approach("231,3", "-")),
             Guidance.direction(0, -1) + " " + Guidance.direction(1, 1)),
             java.util.List.of(
@@ -88,13 +88,11 @@ public final class ClientCheck {
             "116\t40\t200\ttop\tair\tasc\tyes\t300\t7,12\t8,12", "132\t40\t200\ttop\tair\tasc\tyes\t300\t-\t-",
             "148\t40\t200\ttop\tair\tasc\tyes\t300", "164\t40\t200\ttop\tcave_air\tdesc\tyes\t300\t10,12\t10,12")
             .map(Prediction::parse).toList();
-        java.util.List<Integer> anyOrder = rows.stream().filter(Prediction::anyOrder).map(row -> row.pos().getX()).toList();
-        String folia = "Folia: about " + Guidance.FOLIA_ODDS + " (random chunk order)";
-        expect("folia guidance", java.util.List.of(rows.size(), anyOrder, rows.stream().map(row -> row.text(true)).toList(), rows.get(1).text(false)),
-            java.util.List.of(5, java.util.List.of(100, 164), java.util.List.of("top half, cut by a geode; real in any chunk order",
-                    "top half, cut by a geode; " + folia, "top half, cut by a geode; " + folia, "top half, asc",
-                    "top half, cut by a mineshaft or trial chamber corridor; real in any chunk order"),
-                "top half, cut by a geode; real only if its own chunk generated before the chunk to its east (in unexplored land: walk in from the west)"));
+        expect("prediction guidance", rows.stream().map(Prediction::text).toList(),
+            java.util.List.of("top half, cut by a geode; real in any chunk order",
+                "top half, cut by a geode; real only if its own chunk generated before the chunk to its east (in unexplored land: walk in from the west)",
+                "top half, cut by a geode; the chunk order it needs is unknown", "top half, asc",
+                "top half, cut by a mineshaft or trial chamber corridor; real in any chunk order"));
         expect("host names", java.util.List.of(DataKey.host("Java.HugoSMP.net:25565"), DataKey.host("hugosmp.net."),
                 DataKey.host(null), DataKey.host(".."), DataKey.host("[::1]:25565")),
             java.util.List.of("java.hugosmp.net", "hugosmp.net", "local", "unknown", "unknown"));
@@ -115,11 +113,12 @@ public final class ClientCheck {
                 SeedSearch.brief("Failed: a.b.Outer$Inner", 40), SeedSearch.brief("Failed: out of memory", 40)),
             java.util.List.of("Failed: IllegalStateException: Not enou…", "Could not start: UnknownHostException: …",
                 "Failed: Outer$Inner", "Failed: out of memory"));
-        java.util.List<String> menuRows = java.util.List.of(FinderMenu.candidates(3, ServerType.PAPER, true, 0),
-            FinderMenu.candidates(3, ServerType.FOLIA, true, 3), FinderMenu.candidates(1234, ServerType.FOLIA, true, 1000),
-            FinderMenu.candidates(1234, ServerType.PAPER, false, 0));
-        expect("candidates row", java.util.List.of(menuRows.get(0), menuRows.get(1), menuRows.stream().allMatch(row -> row.length() <= SeedSearch.STATUS_LENGTH)),
-            java.util.List.of("3 here · Paper/Spigot (auto)", "3 here · Folia (auto), 1 in 2 each", true));
+        java.util.List<String> menuRows = java.util.List.of(FinderMenu.candidates(3, ServerType.PAPER, true),
+            FinderMenu.candidates(5, ServerType.FOLIA, true), FinderMenu.candidates(1234, ServerType.FOLIA, false),
+            FinderMenu.candidates(123456, ServerType.PAPER, true));
+        expect("candidates row", java.util.List.of(menuRows.get(0), menuRows.get(1), menuRows.get(2),
+                menuRows.stream().allMatch(row -> row.length() <= SeedSearch.STATUS_LENGTH)),
+            java.util.List.of("3 here · Paper/Spigot (auto)", "5 here · Folia (auto)", "1234 here · Folia", true));
         java.util.List<String> asides = java.util.stream.Stream.of("1.5", "15", "种子", "семя", "-42").map(Seeds::asideName).toList();
         expect("set-aside names", java.util.List.of(new HashSet<>(asides).size(), asides.get(1).startsWith("predictions-15-"),
                 asides.get(2).matches("predictions-[0-9a-f]{8}"), asides.get(4).matches("predictions--42-[0-9a-f]{8}"), Seeds.asideName("15")),
@@ -136,7 +135,7 @@ public final class ClientCheck {
         commandLine();
 
         System.out.println("CLIENT CHECK PASSED: 2 azalea trees, trunkless leaves dropped; data rows, box edges, memory, data keys, host names,"
-            + " server versions, server types, folia guidance, splice guidance, search memory, brief status, candidates row, set-aside names,"
+            + " server versions, server types, prediction guidance, splice guidance, search memory, brief status, candidates row, set-aside names,"
             + " merged predictions, search command line");
     }
 

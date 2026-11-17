@@ -1,8 +1,6 @@
 package dripleaffinder;
 
 final class Guidance {
-    static final String FOLIA_ODDS = "1 in 2";
-
     static String cutter(String below) {
         if (below.equals("cave_air")) return "a mineshaft or trial chamber corridor";
         if (below.matches("air|amethyst_block|budding_amethyst|calcite|smooth_basalt|.*amethyst_bud|amethyst_cluster")) return "a geode";
@@ -20,10 +18,9 @@ final class Guidance {
         return chunk != null && chunk.matches("-?\\d+,-?\\d+");
     }
 
-    static String text(int x, int z, String below, String first, String then, boolean folia) {
+    static String text(int x, int z, String below, String first, String then) {
         String cut = "cut by " + cutter(below);
         if (anyOrder(first, then)) return cut + "; real in any chunk order";
-        if (folia) return cut + "; Folia: about " + FOLIA_ODDS + " (random chunk order)";
         if (!known(first) || !known(then)) return cut + "; the chunk order it needs is unknown";
         int[] a = chunk(first), b = chunk(then);
         return cut + "; real only if " + name(x, z, a) + " generated before " + name(x, z, b) + " (in unexplored land: walk in from the "
