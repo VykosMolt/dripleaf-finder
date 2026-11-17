@@ -37,7 +37,7 @@ public final class SeedSearch {
     private String key, pendingKey;
     private BlockPos center;
     private int radius, ticks;
-    private boolean together, fromCommand;
+    private boolean together;
     private long startedAt;
 
     private static final class Setup {
@@ -60,35 +60,35 @@ public final class SeedSearch {
         }));
     }
 
-    public void start(Minecraft mc, int radius, boolean fromCommand) {
+    public void start(Minecraft mc, int radius, boolean chat) {
         if (running()) {
-            if (fromCommand) Finder.message("A seed search is already running; press Stop first.");
+            if (chat) Finder.message("A seed search is already running; press Stop first.");
             return;
         }
         String key = Finder.connectionKey(mc), seed = finder.seeds.seed();
         if (mc.player == null || key == null) {
-            refuse("Join a world first", "Join a world first.", fromCommand);
+            refuse("Join a world first", "Join a world first.", chat);
             return;
         }
         if (finder.seeds.typedVersion() == null && finder.serverVersion.asking(key)) {
             refuse("Asking the server's version; retry", "Still asking the server which version it runs; search again in a few seconds.",
-                fromCommand);
+                chat);
             return;
         }
         String[] gen = finder.seeds.generationVersion();
         String target = gen[0];
         if (!Searchers.versions().contains(target)) {
             refuse("No search for " + target + ": set World Version",
-                "No seed search for " + target + " (" + gen[1] + "): " + Searchers.supported() + ". Pick one in World Version.", fromCommand);
+                "No seed search for " + target + " (" + gen[1] + "): " + Searchers.supported() + ". Pick one in World Version.", chat);
             return;
         }
         if (Versions.java(target) > Runtime.version().feature()) {
             refuse("Needs Java " + Versions.java(target) + " for " + target, "A " + target + " world needs Java " + Versions.java(target)
-                + " to generate; this game runs on Java " + Runtime.version().feature() + ".", fromCommand);
+                + " to generate; this game runs on Java " + Runtime.version().feature() + ".", chat);
             return;
         }
         if (seed == null) {
-            refuse("No seed: set World Seed", "No seed: set World Seed first.", fromCommand);
+            refuse("No seed: set World Seed", "No seed: set World Seed first.", chat);
             return;
         }
         radius = Math.max(MenuModel.MIN_RADIUS, Math.min(MAX_RADIUS, radius));
@@ -100,7 +100,7 @@ public final class SeedSearch {
             refuse(fits > 0 ? "Not enough memory: radius ≤ " + fits : "Not enough memory: needs " + (SearchRun.serverMb(MenuModel.MIN_RADIUS) + 1024) + " MB",
                 "Not enough memory for radius " + radius + ": a search server needs " + SearchRun.serverMb(radius) + " MB plus 1024 MB to spare, "
                     + "and Search Memory and free memory allow " + available + " MB. "
-                    + (fits > 0 ? "A Search Radius of " + fits + " fits." : "Close other programs or raise Search Memory."), fromCommand);
+                    + (fits > 0 ? "A Search Radius of " + fits + " fits." : "Close other programs or raise Search Memory."), chat);
             return;
         }
         boolean both = servers == 2;
@@ -108,7 +108,6 @@ public final class SeedSearch {
         this.center = mc.player.blockPosition();
         this.radius = radius;
         this.together = both;
-        this.fromCommand = fromCommand;
         this.startedAt = System.currentTimeMillis();
         hits.clear();
         lush.clear();
@@ -160,6 +159,8 @@ public final class SeedSearch {
         }, "Dripleaf seed search setup");
         thread.setDaemon(true);
         thread.start();
+        if (chat) Finder.message("Seed search started for " + key + ": seed " + seed + ", " + target + ", radius " + radius + " around "
+            + center.getX() + " " + center.getZ() + (both ? "." : ", one chunk order after the other (Search Memory allows one at a time)."));
     }
 
     private void refuse(String status, String detail, boolean chat) {
@@ -209,7 +210,7 @@ public final class SeedSearch {
             pendingKey = key;
             Finder.message("It is searched when the running seed search ends.");
         } else {
-            start(mc, finder.settings.radius, false);
+            start(mc, finder.settings.radius, true);
         }
     }
 
@@ -364,7 +365,7 @@ public final class SeedSearch {
     private void startPending(Minecraft mc) {
         String next = pendingKey;
         pendingKey = null;
-        if (next != null && next.equals(Finder.connectionKey(mc))) start(mc, finder.settings.radius, false);
+        if (next != null && next.equals(Finder.connectionKey(mc))) start(mc, finder.settings.radius, true);
     }
 
     static List<String> mergeLush(List<String> old, List<String> fresh) {
