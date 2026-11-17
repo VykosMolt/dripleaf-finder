@@ -10,6 +10,12 @@ version = prop("mod_version") + "+mc" + prop("mc")
 the<BasePluginExtension>().archivesName = "dripleaf-finder"
 
 main.java.setSrcDirs(listOf(repo.resolve("src/core")) + eras.map { repo.resolve("src/era/$it/main") })
+val overrides = eras.flatMap { era ->
+    val dir = repo.resolve("src/era/$era/main")
+    if (dir.isDirectory) dir.walkTopDown().filter { it.isFile && it.extension == "java" }
+        .map { it.relativeTo(dir).invariantSeparatorsPath }.toList() else emptyList()
+}.toSet()
+main.java.exclude { it.file.toPath().startsWith(repo.resolve("src/core").toPath()) && it.relativePath.pathString in overrides }
 if (searchOnly) {
     main.java.include(listOf("Searcher", "SearchCompat", "SpawnCompat", "Splice", "WorldCompat").map { "dripleaffinder/$it.java" })
     main.resources.setSrcDirs(listOf(repo.resolve("src/search-resources")))
