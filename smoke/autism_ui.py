@@ -313,21 +313,31 @@ def edit_number(label, value):
     send(f"keyp {END}", *[f"keyp {BACKSPACE}"] * 8, f"type {value}", "wait 2", f"keyp {ENTER}", "wait 4")
 
 
-def items(closed, opened, value, right):
-    x0 = int(value[1]) - 2
+def popup():
+    send("popup")
+    lines = re.findall(r"^\d+ popup (.*)$", (PROBE / "log.txt").read_text(), re.MULTILINE)
+    if not lines or lines[-1] == "closed":
+        raise Abort("the choice popup did not open")
+    values = [int(value) for value in lines[-1].split()]
+    if len(values) != 7 or min(values[2], values[3], values[5], values[6]) < 1:
+        raise Abort(f"invalid choice popup bounds: {values}")
+    return values
 
-    def text(y):
-        return any(opened.ink(x, y) and opened.pixel(x, y) != closed.pixel(x, y) for x in range(x0, x0 + 50))
 
-    lines, y = [], int(value[4]) + 6
-    while y < opened.image.height - 2 and (not lines or y - lines[-1][1] < 20):
-        if text(y):
-            if lines and y - lines[-1][1] <= 3:
-                lines[-1][1] = y
-            else:
-                lines.append([y, y])
-        y += 1
-    return [(opened.line((x0 - 4, top - 4, right - 4, bottom + 5)), [x0, top, x0 + 20, bottom]) for top, bottom in lines if bottom - top >= 5]
+def items(opened, bounds):
+    x, y, width, height, offset, rows, count = bounds
+    row_height = (height - 2) / rows
+    for row in range(rows):
+        top = (y + 1 + row * row_height) * scale
+        bottom = top + row_height * scale
+        box = ((x + 2) * scale, top + scale, (x + width - 3) * scale, bottom - scale)
+        yield opened.line(tuple(round(n) for n in box)), [(x + 2) * scale, top, (x + width - 3) * scale, bottom]
+
+
+def scroll_popup(bounds, steps):
+    x, y, width, height = bounds[:4]
+    command = f"scroll {x + width / 2:.1f} {y + height / 2:.1f} {1 if steps > 0 else -1}"
+    send(*[command] * abs(steps), "wait 5")
 
 
 def choose(label, wanted, name):
@@ -336,15 +346,60 @@ def choose(label, wanted, name):
     if not value:
         raise Abort(f"no {label} dropdown ({s.path.name})")
     click(value[0])
-    opened = shot(f"{name}-open")
-    options = items(s, opened, value[0], s.row(s.label(label))[2])
-    names = [n for n, _ in options]
-    pick = next((box for n, box in options if wanted(n)), None)
-    if pick is not None:
-        click([""] + pick)
+    bounds = popup()
+    if bounds[4]:
+        scroll_popup(bounds, bounds[4])
+        bounds = popup()
+    names = []
+    for page in range(bounds[6] + 1):
+        opened = shot(f"{name}-page-{page}")
+        bounds = popup()
+        offset, rows, count = bounds[4:]
+        for text, box in items(opened, bounds):
+            names.append(text)
+            if wanted(text):
+                click([""] + box)
+                return names, opened
+        if offset + rows >= count:
+            break
+        scroll_popup(bounds, max(1, rows - 1) * -1)
+        next_bounds = popup()
+        if next_bounds[4] <= offset:
+            raise Abort(f"choice popup stopped scrolling at {offset} of {count}")
     else:
-        send(f"keyp {ESCAPE}", "wait 4")
+        raise Abort("the choice popup never reached its final item")
+    send(f"keyp {ESCAPE}", "wait 4")
     return names, opened
+
+
+def catalogue_versions(last):
+    s = view("c-version-closed", rows=("World Version",), check_layout=False)
+    anchor = s.right_of(s.label("World Version"))[0]
+    click(anchor)
+    bounds = popup()
+    count = bounds[6]
+    if not 0 <= last < count:
+        raise Abort(f"old-version position {last} is absent from {count} choices")
+    indices = [index for index in range(count) if index != last] + [last]
+    names = [None] * count
+    for step, index in enumerate(indices):
+        offset, rows = bounds[4:6]
+        if not offset <= index < offset + rows:
+            target = index if index < offset else index - rows + 1
+            scroll_popup(bounds, offset - target)
+            bounds = popup()
+        if bounds[6] != count or not bounds[4] <= index < bounds[4] + bounds[5]:
+            raise Abort(f"choice {index} is not reachable in popup {bounds}")
+        if step == 0 or index % bounds[5] == 0 or step == len(indices) - 1:
+            s = shot(f"c-version-index-{index}")
+        x, y, width, height, offset, rows, _ = bounds
+        row_height = (height - 2) / rows
+        click_at((x + width / 2) * scale, (y + 1 + (index - offset + 0.5) * row_height) * scale)
+        names[index] = read(KEY_A, "version.txt") or "Auto"
+        if step < len(indices) - 1:
+            click(anchor)
+            bounds = popup()
+    return names, s
 
 
 def flow_a():
@@ -393,13 +448,14 @@ def flow_f_noseed():
 def flow_c():
     with zipfile.ZipFile(ADDON) as jar:
         bundled = jar.read("searchers/versions.tsv").decode().split("\n") if "searchers/versions.tsv" in jar.namelist() else []
-    expected = {"Auto", "26.2"} | {line.split("\t")[0] for line in bundled if line.strip()}
-    names, opened = choose("World Version", lambda n: n != "Auto" and n in expected, "c-version")
-    picked = next((n for n in names if n != "Auto" and n in expected), None)
-    check("c1. World Version lists Auto and the bundled versions", set(names) == expected and len(names) == len(expected),
-          f"listed={names} expected={sorted(expected)}", opened)
+    versions = {"26.2"} | {line.split("\t")[0] for line in bundled if line.strip()}
+    expected = ["Auto"] + sorted(versions, key=lambda version: tuple(int(n) for n in version.split(".")), reverse=True)
+    picked = "1.18"
+    names, opened = catalogue_versions(expected.index(picked))
+    check("c1. World Version exposes every version in order through the popup", names == expected,
+          f"listed={names} expected={expected}", opened)
     chosen = read(KEY_A, "version.txt")
-    check("c2. a non-Auto version is saved", picked is not None and chosen == picked, f"picked={picked!r} version.txt={chosen!r}", opened)
+    check("c2. an old version reached by scrolling is saved", chosen == picked, f"picked={picked!r} version.txt={chosen!r}", opened)
     names, opened = choose("World Version", lambda n: n == "Auto", "c-auto")
     check("c3. Auto removes version.txt", chosen is not None and read(KEY_A, "version.txt") is None,
           f"version.txt {chosen!r}->{read(KEY_A, 'version.txt')!r}", opened)
@@ -424,6 +480,7 @@ def flow_e():
 
 
 def flow_f():
+    choose("World Version", lambda n: n == "26.2", "f-version")
     edit_seed("1234567890", "enter")
     s = view("f-before", rows=("Status", "Seed Search"))
     idle = s.value("Status")
@@ -445,7 +502,7 @@ def flow_f():
 
 
 def flow_g():
-    choose("World Version", lambda n: n != "Auto", "g-version")
+    choose("World Version", lambda n: n == "26.2", "g-version")
     seed, version, kind = read(KEY_A, "seed.txt"), read(KEY_A, "version.txt"), read(KEY_A, "server-type.txt")
     for label in ("Masked Server", "Lush Cave Pings", "Azalea Trees"):
         s = view("g-toggle-" + label.split()[0].lower(), rows=(label,))

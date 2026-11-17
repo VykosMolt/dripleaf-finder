@@ -1,11 +1,16 @@
 package uiprobe;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayDeque;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Set;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.loader.api.FabricLoader;
@@ -97,9 +102,45 @@ public final class UiProbe implements ClientModInitializer {
             case "wait" -> wait = Integer.parseInt(arg);
             case "mark" -> write("mark " + arg + " screen " + (screen == null ? "none" : screen.getClass().getName())
                 + " world " + (mc.level != null) + " scale " + mc.getWindow().getGuiScale());
+            case "popup" -> {
+                Object popup = dropdown(screen, Collections.newSetFromMap(new IdentityHashMap<>()));
+                if (popup == null || !(Boolean) field(popup, "init", boolean.class)) {
+                    write("popup closed");
+                    break;
+                }
+                Object bounds = field(popup, "load", Class.forName("autismclient.gui.f.NetHelper"));
+                write("popup " + field(bounds, "init", int.class) + " " + field(bounds, "load", int.class) + " "
+                    + field(bounds, "read", int.class) + " " + field(bounds, "write", int.class) + " "
+                    + field(popup, "load", int.class) + " " + field(popup, "read", int.class) + " "
+                    + ((List<?>) field(popup, "init", List.class)).size());
+            }
             case "quit" -> mc.stop();
             default -> write("unknown " + command);
         }
+    }
+
+    private static Object field(Object object, String name, Class<?> type) throws Exception {
+        for (Field field : object.getClass().getDeclaredFields()) {
+            if (!field.getName().equals(name) || field.getType() != type) continue;
+            field.setAccessible(true);
+            return field.get(object);
+        }
+        throw new NoSuchFieldException(object.getClass().getName() + "." + name + ":" + type.getName());
+    }
+
+    private static Object dropdown(Object object, Set<Object> seen) throws Exception {
+        if (object == null || !seen.add(object)) return null;
+        if (object.getClass().getName().equals("autismclient.gui.f.b.RefQueue")) return object;
+        for (Class<?> type = object.getClass(); type != null; type = type.getSuperclass()) {
+            if (!type.getName().startsWith("autismclient.gui.")) continue;
+            for (Field field : type.getDeclaredFields()) {
+                if (Modifier.isStatic(field.getModifiers()) || !field.getType().getName().startsWith("autismclient.gui.")) continue;
+                field.setAccessible(true);
+                Object found = dropdown(field.get(object), seen);
+                if (found != null) return found;
+            }
+        }
+        return null;
     }
 
     private static void move(Minecraft mc, double x, double y) throws Exception {
