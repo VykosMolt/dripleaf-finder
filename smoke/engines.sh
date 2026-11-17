@@ -55,7 +55,7 @@ run() {
   mkdir -p "$d"
   game=$(server_jar "$v") || { echo "no verified $v server jar" > "$d/error"; return; }
   if [[ $v == 1.* ]]; then cp+=:$(intermediary "$v") || { echo "no verified $v intermediary" > "$d/error"; return; }; fi
-  printf 'level-seed=%s\nonline-mode=false\nserver-ip=127.0.0.1\nserver-port=0\nenable-status=false\nenable-query=false\nenable-rcon=false\nmax-tick-time=-1\npause-when-empty-seconds=-1\nview-distance=2\nsimulation-distance=2\nspawn-protection=0\nsync-chunk-writes=false\nspawn-monsters=false\nspawn-animals=false\nwhite-list=true\n' "$SEED" > "$d/server.properties"
+  printf 'level-seed=%s\nonline-mode=false\nserver-ip=127.0.0.1\nserver-port=0\nenable-status=false\nenable-query=false\nenable-rcon=false\nmax-tick-time=-1\npause-when-empty-seconds=-1\nview-distance=2\nsimulation-distance=2\nspawn-protection=0\nsync-chunk-writes=false\nregion-file-compression=lz4\nspawn-monsters=false\nspawn-animals=false\nwhite-list=true\n' "$SEED" > "$d/server.properties"
   echo eula=true > "$d/eula.txt"
   printf 'out=%s\nx=%s\nz=%s\nradius=%s\norder=%s\nfloors=true\nsplices=true\n' "$d/results.tsv" "$x" "$z" "$r" "$order" > "$d/search.properties"
   : > "$d/results.tsv"
