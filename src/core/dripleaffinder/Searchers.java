@@ -33,11 +33,12 @@ final class Searchers {
     record Launch(Path gameJar, List<Path> mods, List<String> classpath) {
     }
 
-    @SuppressWarnings("unchecked")
     static Launch prepare(Path cache, String target) throws IOException {
-        if (target.equals(Versions.client())) {
-            Path game = ((List<Path>) FabricLoader.getInstance().getObjectShare().get("fabric-loader:inputGameJars")).get(0);
-            Path mod = FabricLoader.getInstance().getModContainer("dripleaf-finder").orElseThrow().getOrigin().getPaths().get(0);
+        boolean client = target.equals(Versions.client());
+        Path mod = client ? FabricLoader.getInstance().getModContainer("dripleaf-finder").orElseThrow().getOrigin().getPaths().get(0)
+            : bundled(cache.resolve("searchers"), target);
+        if (client && FabricLoader.getInstance().getObjectShare().get("fabric-loader:inputGameJars") instanceof List<?> jars
+                && !jars.isEmpty() && jars.get(0) instanceof Path game) {
             return new Launch(game, List.of(mod, apiBase(cache)), List.of(System.getProperty("java.class.path").split(File.pathSeparator)));
         }
         Path serverJar = serverJar(cache.resolve(target), target);
@@ -46,7 +47,7 @@ final class Searchers {
             if (LOADER_JARS.matcher(Path.of(entry).getFileName().toString()).matches()) classpath.add(entry);
         }
         if (target.startsWith("1.")) classpath.add(intermediary(cache.resolve(target), target).toString());
-        return new Launch(serverJar, List.of(bundled(cache.resolve("searchers"), target), apiBase(cache)), classpath);
+        return new Launch(serverJar, List.of(mod, apiBase(cache)), classpath);
     }
 
     static Path apiBase(Path cache) throws IOException {
