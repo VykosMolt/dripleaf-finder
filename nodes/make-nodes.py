@@ -20,7 +20,7 @@ for line in open(os.path.join(HERE, 'nodes.tsv')):
     os.makedirs(d, exist_ok=True)
     open(os.path.join(d, 'settings.gradle.kts'), 'w').write(SETTINGS.format(mc=mc))
     props = {'mc': mc, 'java': java, 'fabric_api': fapi, 'loader': '0.20.1', 'eras': eras,
-             'mod_version': '1.3.0', 'org.gradle.jvmargs': '-Xmx3G',
+             'mod_version': '1.3.1', 'org.gradle.jvmargs': '-Xmx3G',
              'org.gradle.java.installations.paths': ','.join(os.path.expanduser(f'~/.local/share/PrismLauncher/java/java-runtime-{r}')
                                                               for r in ('gamma', 'delta', 'epsilon')),
              'org.gradle.java.installations.auto-download': 'false'}

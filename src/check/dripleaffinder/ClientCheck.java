@@ -13,6 +13,7 @@ import net.minecraft.world.phys.AABB;
 public final class ClientCheck {
     public static void main(String[] args) throws java.io.IOException {
         SelfCheck.main(args);
+        lushNeighborhood();
 
         for (int x = 2; x <= 4; x++) for (int y = 100; y <= 101; y++) for (int z = 2; z <= 4; z++) {
             set(x, y, z, (x + y + z) % 2 == 0 ? Blocks.AZALEA_LEAVES.defaultBlockState() : Blocks.FLOWERING_AZALEA_LEAVES.defaultBlockState());
@@ -180,7 +181,7 @@ public final class ClientCheck {
 
         System.out.println("CLIENT CHECK PASSED: 2 azalea trees, trunkless leaves dropped; data rows, box edges, memory, data keys, host names,"
             + " server versions, server types, prediction guidance, splice guidance, search memory, brief status, candidates row, set-aside names, set aside,"
-            + " merged predictions, spawn chunks kept, overworld centre, unchecked candidates, search status, search command line, search cache, generation folders");
+            + " merged predictions, spawn chunks kept, overworld centre, unchecked candidates, search status, search command line, search cache, generation folders, lush neighborhood");
     }
 
     static void setAside(String name) throws java.io.IOException {
@@ -200,6 +201,51 @@ public final class ClientCheck {
         String lush = "lush" + name.substring("predictions".length());
         expect("set aside", java.util.List.of(moved, left), java.util.List.of(java.util.List.of(name + "-2.tsv", lush + "-2.tsv"),
             java.util.List.of(lush + "-2.tsv=new lush", name + "-2.tsv=new predictions", name + ".tsv=old predictions")));
+    }
+
+    static void lushNeighborhood() {
+        var owner = new net.minecraft.core.HolderOwner<net.minecraft.world.level.biome.Biome>() {};
+        var lush = net.minecraft.core.Holder.Reference.createStandAlone(owner, net.minecraft.world.level.biome.Biomes.LUSH_CAVES);
+        var plains = net.minecraft.core.Holder.Reference.createStandAlone(owner, net.minecraft.world.level.biome.Biomes.PLAINS);
+        var fuzzy = new net.minecraft.world.level.biome.BiomeManager(
+            (x, y, z) -> x == -2 && y == 14 && z == -2 ? lush : plains,
+            net.minecraft.world.level.biome.BiomeManager.obfuscateSeed(0));
+        var upper = Blocks.SMALL_DRIPLEAF.defaultBlockState().setValue(net.minecraft.world.level.block.DoublePlantBlock.HALF,
+            net.minecraft.world.level.block.state.properties.DoubleBlockHalf.UPPER);
+        BlockPos target = new BlockPos(0, 64, 0);
+        int[][] cases = {{0, 3, 0, 3, 0, 3, 1}, {4, 7, 0, 3, 0, 3, 1}, {-4, -1, 0, 3, 0, 3, 1},
+            {0, 3, 0, 3, 4, 7, 1}, {4, 7, 4, 7, -4, -1, 1}, {8, 11, 4, 7, 8, 11, 1},
+            {-11, -8, -7, -4, -11, -8, 1}, {1, 1, 1, 1, 1, 1, 1}, {9, 12, 0, 3, 0, 3, 0},
+            {0, 3, 5, 8, 0, 3, 0}, {0, 3, 0, 3, -12, -9, 0}};
+        for (int i = 0; i <= cases.length; i++) {
+            int[] c = i < cases.length ? cases[i] : null;
+            var level = (net.minecraft.world.level.LevelReader) java.lang.reflect.Proxy.newProxyInstance(
+                net.minecraft.world.level.LevelReader.class.getClassLoader(), new Class<?>[] {net.minecraft.world.level.LevelReader.class},
+                (proxy, method, args) -> {
+                    return switch (method.getName()) {
+                        case "getBiome" -> {
+                            BlockPos at = ((BlockPos) args[0]).subtract(target);
+                            if (Math.abs(at.getX()) > 8 || Math.abs(at.getY()) > 4 || Math.abs(at.getZ()) > 8)
+                                throw new AssertionError("biome sampled outside the lush neighborhood");
+                            if (c == null) yield fuzzy.getBiome((BlockPos) args[0]);
+                            yield at.getX() >= c[0] && at.getX() <= c[1] && at.getY() >= c[2] && at.getY() <= c[3]
+                                && at.getZ() >= c[4] && at.getZ() <= c[5] ? lush : plains;
+                        }
+                        case "getBlockState" -> {
+                            BlockPos at = (BlockPos) args[0];
+                            yield at.equals(target) ? upper : at.equals(target.below()) ? Blocks.SMOOTH_BASALT.defaultBlockState()
+                                : at.equals(target.above(2)) ? Blocks.STONE.defaultBlockState() : Blocks.AIR.defaultBlockState();
+                        }
+                        case "getMaxY" -> 320;
+                        default -> throw new UnsupportedOperationException(method.toString());
+                    };
+                });
+            boolean expected = c == null || c[6] != 0;
+            expect("lush neighborhood " + java.util.Arrays.toString(c), java.util.List.of(
+                    Splice.spliced(level, target, upper, false, pos -> true), Splice.lushNear(level, target),
+                    Splice.settle(level, target, Splice.SETTLE_TICKS, false, pos -> Splice.lushNear(level, pos))),
+                java.util.List.of(true, expected, expected));
+        }
     }
 
     static void commandLine() throws java.io.IOException {

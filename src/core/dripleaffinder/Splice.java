@@ -35,8 +35,10 @@ final class Splice {
     }
 
     static boolean lushNear(LevelReader level, BlockPos pos) {
-        for (int dx = -8; dx <= 8; dx += 8) for (int dy = -4; dy <= 4; dy += 4) for (int dz = -8; dz <= 8; dz += 8) {
-            if (WorldCompat.isLush(level, pos.offset(dx, dy, dz))) return true;
+        if (WorldCompat.isLush(level, pos)) return true;
+        BlockPos.MutableBlockPos at = pos.mutable();
+        for (int dx = -8; dx <= 8; dx++) for (int dy = -4; dy <= 4; dy++) for (int dz = -8; dz <= 8; dz++) {
+            if (WorldCompat.isLush(level, at.set(pos.getX() + dx, pos.getY() + dy, pos.getZ() + dz))) return true;
         }
         return false;
     }
