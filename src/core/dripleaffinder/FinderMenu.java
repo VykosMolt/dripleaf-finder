@@ -16,7 +16,7 @@ final class FinderMenu implements MenuModel {
         this.finder = finder;
         settings = finder.settings;
         long bytes = ((OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean()).getTotalMemorySize();
-        maxMemoryGb = Math.max(1, (int) (bytes >> 30) / 2);
+        maxMemoryGb = Math.max(1, (int) (bytes >> 30) - 2);
     }
 
     public boolean enabled() {
