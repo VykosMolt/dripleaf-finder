@@ -6,6 +6,7 @@ import java.io.RandomAccessFile;
 import java.io.UncheckedIOException;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -31,9 +32,13 @@ final class SearchRun {
         this.process = process;
     }
 
+    static Path searches(Path gameDir) {
+        return gameDir.resolve("dripleaf-finder").resolve("search");
+    }
+
     static SearchRun start(Path gameDir, String seed, String order, BlockPos center, int radius, boolean floors, Searchers.Launch launch)
             throws IOException {
-        Path searches = gameDir.resolve("dripleaf-finder").resolve("search"), dir = searches.resolve(order);
+        Path searches = searches(gameDir), dir = searches.resolve(order);
         try {
             delete(dir);
             Files.createDirectories(dir);
@@ -73,8 +78,23 @@ final class SearchRun {
         return new SearchRun(order, dir, process);
     }
 
+    static void deleteFallbacks(Path gameDir) {
+        try (DirectoryStream<Path> dirs = Files.newDirectoryStream(searches(gameDir), "{asc,desc}-*")) {
+            for (Path dir : dirs) {
+                try {
+                    deleteOnce(dir);
+                } catch (IOException stillOpen) {
+                }
+            }
+        } catch (IOException e) {
+        }
+    }
+
     void kill() {
         process.destroyForcibly();
+    }
+
+    void awaitExit() {
         try {
             process.waitFor(EXIT_WAIT_SECONDS, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
@@ -83,12 +103,10 @@ final class SearchRun {
     }
 
     void deleteWorld() {
+        awaitExit();
         try {
-            process.waitFor(EXIT_WAIT_SECONDS, TimeUnit.SECONDS);
             delete(dir.resolve("world"));
         } catch (IOException e) {
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
         }
     }
 

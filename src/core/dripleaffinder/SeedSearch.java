@@ -19,7 +19,7 @@ public final class SeedSearch {
     public static final int DEFAULT_RADIUS = 1000, MAX_RADIUS = 4000;
 
     private final Finder finder;
-    private final List<SearchRun> runs = new CopyOnWriteArrayList<>();
+    private final List<SearchRun> runs = new CopyOnWriteArrayList<>(), killed = new CopyOnWriteArrayList<>();
     final Map<BlockPos, String[]> hits = new LinkedHashMap<>();
     private final List<String> lush = new ArrayList<>();
     String lastResult;
@@ -106,6 +106,11 @@ public final class SeedSearch {
                 List<SearchRun> started = new ArrayList<>();
                 try {
                     if (mine.generation != generation) return;
+                    for (SearchRun old : killed) {
+                        old.awaitExit();
+                        killed.remove(old);
+                    }
+                    SearchRun.deleteFallbacks(gameDir);
                     Path cache = gameDir.resolve("dripleaf-finder").resolve("cache");
                     Searchers.Launch launch = Searchers.prepare(cache, target);
                     started.add(SearchRun.start(gameDir, seed, "asc", at, r, true, launch));
@@ -114,11 +119,11 @@ public final class SeedSearch {
                     mine.error = e.toString();
                 }
                 if (mine.error != null || mine.generation != generation) {
-                    started.forEach(SearchRun::kill);
+                    kill(started);
                     return;
                 }
                 mine.launched = started;
-                if (mine.generation != generation) started.forEach(SearchRun::kill);
+                if (mine.generation != generation) kill(started);
             }
         }, "Dripleaf seed search setup");
         thread.setDaemon(true);
@@ -157,11 +162,18 @@ public final class SeedSearch {
         generation++;
         Setup pending = setup;
         setup = null;
-        runs.forEach(SearchRun::kill);
-        if (pending != null && pending.launched != null) pending.launched.forEach(SearchRun::kill);
+        kill(runs);
+        if (pending != null && pending.launched != null) kill(pending.launched);
         runs.clear();
         pendingKey = null;
         Finder.message("Seed search stopped.");
+    }
+
+    private void kill(List<SearchRun> stopping) {
+        for (SearchRun run : stopping) {
+            run.kill();
+            killed.add(run);
+        }
     }
 
     void tick(Minecraft mc) {
