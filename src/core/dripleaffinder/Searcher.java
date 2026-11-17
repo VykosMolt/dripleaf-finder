@@ -193,8 +193,11 @@ public final class Searcher implements ModInitializer {
         List<BlockPos> hits = new ArrayList<>();
         List<BlockState> states = new ArrayList<>();
         long[] plants = new long[1];
-        for (int from = 0; from < report.size(); from += BATCH) {
-            List<Long> batch = report.subList(from, Math.min(from + BATCH, report.size()));
+        List<Long> scan = report.stream().sorted(order).toList();
+        Map<Long, List<BlockPos>> hitsIn = new HashMap<>();
+        Map<Long, List<BlockState>> statesIn = new HashMap<>();
+        for (int from = 0; from < scan.size(); from += BATCH) {
+            List<Long> batch = scan.subList(from, Math.min(from + BATCH, scan.size()));
             server.submit(() -> {
                 for (long k : batch) {
                     ChunkAccess chunk = SearchCompat.decorate(level, x(k), z(k));
@@ -203,11 +206,15 @@ public final class Searcher implements ModInitializer {
                         for (int i = 0; i < 4096; i++) if (Splice.isLeaf(section.getBlockState(i & 15, i >> 8, (i >> 4) & 15))) plants[0]++;
                     }
                     Splice.scan(chunk, false, at -> true, (at, state) -> {
-                        hits.add(at.immutable());
-                        states.add(state);
+                        hitsIn.computeIfAbsent(k, c -> new ArrayList<>()).add(at.immutable());
+                        statesIn.computeIfAbsent(k, c -> new ArrayList<>()).add(state);
                     });
                 }
             }).join();
+        }
+        for (long k : report) {
+            hits.addAll(hitsIn.getOrDefault(k, List.of()));
+            states.addAll(statesIn.getOrDefault(k, List.of()));
         }
         server.submit(() -> {
             for (BlockPos at : hits) level.setChunkForced(at.getX() >> 4, at.getZ() >> 4, true);
