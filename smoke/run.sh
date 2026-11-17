@@ -3,6 +3,8 @@ set -uo pipefail
 main() {
 MC=$1
 MODE=${2:-planted}
+SEED="" CX="" CZ="" RADIUS="" FLAG=""
+case "$MODE" in search|realworld) SEED=$3 CX=$4 CZ=$5 RADIUS=$6 FLAG=${7:-} ;; esac
 HERE="$(cd "$(dirname "$0")" && pwd)"
 NODE="$HERE/../nodes/$MC"
 [ -d "$NODE" ] || { echo "SMOKE FAIL $MC $MODE: no node"; exit 2; }
@@ -16,7 +18,7 @@ rm -rf "$WORK" && mkdir -p "$WORK/server" "$HERE/out"
 RUN="$NODE/smoke-run"
 rm -rf "$RUN/screenshots" "$RUN/config/dripleaf" "$RUN/logs/latest.log" "$RUN/config/seedcracker.json" \
   "$RUN/config/SeedCrackerX saved structures" && mkdir -p "$RUN"
-if [ "${7:-}" = scx ]; then
+if [ "$FLAG" = scx ]; then
   SCX="$(awk -F'\t' -v v="$MC" '$1 == v {print $2}' "$HERE/seedcracker/versions.tsv")"
   [ -n "$SCX" ] || { echo "SMOKE FAIL $MC $MODE: no SeedcrackerX release for $MC"; exit 2; }
   SMOKE_EXTRA="$HERE/seedcracker/$SCX${SMOKE_EXTRA:+:$SMOKE_EXTRA}"
@@ -40,16 +42,16 @@ simulation-distance=4
 max-tick-time=-1
 sync-chunk-writes=false"
 if [ "$MODE" = realworld ]; then
-  printf '%s\nlevel-seed=%s\ngamemode=spectator\nforce-gamemode=true\nspawn-monsters=false\n' "$COMMON" "$3" > server.properties
+  printf '%s\nlevel-seed=%s\ngamemode=spectator\nforce-gamemode=true\nspawn-monsters=false\n' "$COMMON" "$SEED" > server.properties
 else
   printf '%s\nlevel-type=flat\ngenerate-structures=false\nspawn-monsters=false\nspawn-animals=false\ngamemode=creative\n%s\n' "$COMMON" \
     'generator-settings={"structures":{"structures":{}},"layers":[{"block":"minecraft:bedrock","height":1},{"block":"minecraft:stone","height":3}],"biome":"minecraft:lush_caves"}' \
     > server.properties
 fi
 if [ "$MODE" != realworld ] && [[ "$MC" == 1.17* || "$MC" == 1.18* ]]; then
-    sed -i '/^generator-settings=/d' server.properties
-    echo stop | timeout 300 "$JAVA" -Xmx2G -jar "$SERVER_JAR" nogui > first.log 2>&1
-    python3 - world/level.dat <<'PATCH' || { echo "SMOKE FAIL $MC $MODE: level.dat patch failed"; exit 1; }
+  sed -i '/^generator-settings=/d' server.properties
+  echo stop | timeout 300 "$JAVA" -Xmx2G -jar "$SERVER_JAR" nogui > first.log 2>&1
+  python3 - world/level.dat <<'PATCH' || { echo "SMOKE FAIL $MC $MODE: level.dat patch failed"; exit 1; }
 import gzip, sys
 data = gzip.decompress(open(sys.argv[1], 'rb').read())
 old, new = b'minecraft:plains', b'minecraft:lush_caves'
@@ -57,9 +59,9 @@ if data.count(len(old).to_bytes(2, 'big') + old) == 0: sys.exit('no plains biome
 data = data.replace(len(old).to_bytes(2, 'big') + old, len(new).to_bytes(2, 'big') + new)
 open(sys.argv[1], 'wb').write(gzip.compress(data))
 PATCH
-    rm -rf world/region world/entities world/poi
-  fi
-  mkfifo cmd
+  rm -rf world/region world/entities world/poi
+fi
+mkfifo cmd
 "$JAVA" -Xmx1536M -jar "$SERVER_JAR" nogui < cmd > server.log 2>&1 &
 pids+=($!)
 exec 3> cmd
@@ -98,8 +100,8 @@ fi
 case "$MC" in 1.17*|1.18*|1.19*) JOIN=""; CONNECT="-Ddripleaffinder.smoke.connect=127.0.0.1:$PORT" ;; *) JOIN="--quickPlayMultiplayer 127.0.0.1:$PORT"; CONNECT="" ;; esac
 case "$MODE" in
   planted) SCENARIO="-Ddripleaffinder.smoke.pos=4,101,8 -Ddripleaffinder.smoke.camera=1.5,101,3.5 -Ddripleaffinder.smoke.negative=$NEGATIVE" ;;
-  search) SCENARIO="-Ddripleaffinder.smoke.search=$3,$6,${7:-} -Ddripleaffinder.smoke.camera=$4.5,120,$5.5" ;;
-  realworld) SCENARIO="-Ddripleaffinder.smoke.realworld=$3,$6,96,${7:-} -Ddripleaffinder.smoke.camera=$4.5,200,$5.5 -Ddripleaffinder.smoke.tp=$WORK/tp.txt" ;;
+  search) SCENARIO="-Ddripleaffinder.smoke.search=$SEED,$RADIUS,$FLAG -Ddripleaffinder.smoke.camera=$CX.5,120,$CZ.5" ;;
+  realworld) SCENARIO="-Ddripleaffinder.smoke.realworld=$SEED,$RADIUS,96,$FLAG -Ddripleaffinder.smoke.camera=$CX.5,200,$CZ.5 -Ddripleaffinder.smoke.tp=$WORK/tp.txt" ;;
   *) echo "SMOKE FAIL $MC $MODE: unknown scenario"; exit 2 ;;
 esac
 cd "$HERE/.."
@@ -113,7 +115,7 @@ scx_tour() {
   local SL="$WORK/server/server.log" seen="" n at kind line x z
   say "execute in minecraft:the_end run tp DripTest 0 100 0"
   sleep 15
-  say "execute in minecraft:overworld run tp DripTest $1 200 $2"
+  say "execute in minecraft:overworld run tp DripTest $CX 200 $CZ"
   sleep 5
   for at in "0 0" "3000 0" "-3000 0" "0 3000" "0 -3000" "3000 3000" "-3000 -3000" "3000 -3000" "-3000 3000"; do
     for kind in swamp_hut desert_pyramid igloo jungle_pyramid; do
@@ -139,10 +141,10 @@ wait_for 600 "grep -q 'DripTest joined the game' '$WORK/server/server.log'"
 sleep 2
 case "$MODE" in
   planted) say "gamemode creative DripTest" "tp DripTest 1.5 101 3.5 -30.96 10.87" ;;
-  search) say "gamemode creative DripTest" "tp DripTest $4 120 $5" ;;
+  search) say "gamemode creative DripTest" "tp DripTest $CX 120 $CZ" ;;
   realworld)
-    say "tp DripTest $4 200 $5"
-    [ "${7:-}" = scx ] && scx_tour "$4" "$5"
+    say "tp DripTest $CX 200 $CZ"
+    [ "$FLAG" = scx ] && scx_tour
     LAST=""
     while wait_for 7200 "[ -s '$WORK/tp.txt' ] && [ \"\$(cut -d' ' -f1 '$WORK/tp.txt')\" != '$LAST' ]"; do
       read -r N X Y Z AX AZ < "$WORK/tp.txt"

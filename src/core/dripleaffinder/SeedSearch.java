@@ -304,6 +304,10 @@ public final class SeedSearch {
             + " version downloads its server from Mojang.");
     }
 
+    BlockPos center() {
+        return center;
+    }
+
     boolean running() {
         return setup != null || !runs.isEmpty();
     }
