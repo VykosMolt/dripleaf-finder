@@ -118,8 +118,8 @@ public final class Seeds {
             write(key, "seed.txt", seed);
             seedChanged(key, before);
             String cracked = read(key, "seedcracker.txt");
-            Finder.message(seed == null ? "World Seed cleared for " + key + (cracked != null ? "; SeedcrackerX's " + cracked + " is used." : ".")
-                : "Seed " + seed + " saved for " + key + ".");
+            Finder.message(seed == null ? "World Seed cleared for " + key + (cracked != null ? "; SeedcrackerX's seed is used." : ".")
+                : "World Seed saved for " + key + ".");
         } catch (IOException e) {
             Finder.message("Could not save the seed: " + e.getMessage());
         }
@@ -137,15 +137,15 @@ public final class Seeds {
             return;
         }
         if (typed != null && !typed.equals(seed)) {
-            Finder.message(source + " found the world seed " + seed + "; the seed typed for " + key + " (" + typed
-                + ") stays in use (clear World Seed to use " + source + "'s).");
+            Finder.message(source + " found the world seed, which differs from the typed seed; the typed seed for " + key
+                + " stays in use (clear World Seed to use " + source + "'s).");
             return;
         }
         if (seed.equals(before)) {
-            Finder.message(source + " found the world seed " + seed + " (already the seed for " + key + ").");
+            Finder.message(source + " found the world seed (already the seed for " + key + ").");
             return;
         }
-        Finder.message(source + " found the world seed " + seed + ".");
+        Finder.message(source + " found the world seed.");
         seedChanged(key, before);
         finder.search.startOrQueue(mc, key);
     }
@@ -153,8 +153,8 @@ public final class Seeds {
     void showSeed() {
         String key = key(), typed = typedSeed(), cracked = read(key, "seedcracker.txt");
         Finder.message(key == null ? "Join a world first." : typed == null && cracked == null ? "No seed for " + key + ". Set World Seed."
-            : "Seed for " + key + ": " + seed() + (typed != null ? " (typed" + (cracked != null && !cracked.equals(typed)
-                ? "; SeedcrackerX found " + cracked : "") + ")" : " (from SeedcrackerX)"));
+            : "Seed for " + key + ": " + (typed != null ? "the typed seed" + (cracked != null && !cracked.equals(typed)
+                ? " (SeedcrackerX found a different one)" : "") : "SeedcrackerX's seed") + ".");
     }
 
     String[] generationVersion() {

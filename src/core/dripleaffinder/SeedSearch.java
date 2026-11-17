@@ -159,7 +159,8 @@ public final class SeedSearch {
         }, "Dripleaf seed search setup");
         thread.setDaemon(true);
         thread.start();
-        if (chat) Finder.message("Seed search started for " + key + ": seed " + seed + ", " + target + ", radius " + radius + " around "
+        if (chat) Finder.message("Seed search started for " + key + ": " + (finder.seeds.typedSeed() != null ? "the typed seed" : "SeedcrackerX's seed")
+            + ", " + target + ", radius " + radius + " around "
             + center.getX() + " " + center.getZ() + (both ? "." : ", one chunk order after the other (Search Memory allows one at a time)."));
     }
 
