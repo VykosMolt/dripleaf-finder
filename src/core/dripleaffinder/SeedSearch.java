@@ -338,9 +338,11 @@ public final class SeedSearch {
         }
         failures.forEach(Finder::message);
         if (saveError != null) Finder.message(saveError);
-        if (!complete) lastResult = "Failed: " + failed.values().iterator().next();
+        String halves = hits.size() + (hits.size() == 1 ? " half, " : " halves, ");
+        if (!done) lastResult = "Failed: " + failed.values().iterator().next();
         else if (saveError != null) lastResult = "Could not save results";
-        else lastResult = "Done: " + hits.size() + (hits.size() == 1 ? " half, " : " halves, ") + lush.size() + " lush tiles, " + seconds + " s";
+        else if (!complete) lastResult = "Done, " + String.join(", ", failed.keySet()) + " failed: " + halves + lush.size() + " lush";
+        else lastResult = "Done: " + halves + lush.size() + " lush tiles, " + seconds + " s";
         boolean here = key.equals(finder.memory.key());
         if (here) finder.reloadData();
         if (missedLive) finder.announceSavedOnReturn(key);
