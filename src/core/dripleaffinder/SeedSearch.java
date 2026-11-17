@@ -178,6 +178,12 @@ public final class SeedSearch {
 
     private long availableMb() {
         long free = ((OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean()).getFreeMemorySize() >> 20;
+        try {
+            for (String line : Files.readAllLines(Path.of("/proc/meminfo"))) {
+                if (line.startsWith("MemAvailable:")) free = Long.parseLong(line.replaceAll("\\D", "")) >> 10;
+            }
+        } catch (IOException | NumberFormatException e) {
+        }
         return Math.min(Math.max(1, finder.settings.memoryGb) * 1024L, free);
     }
 
