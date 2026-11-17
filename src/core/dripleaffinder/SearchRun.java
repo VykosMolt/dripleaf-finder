@@ -3,6 +3,7 @@ package dripleaffinder;
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.io.UncheckedIOException;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -112,6 +113,8 @@ final class SearchRun {
         if (!Files.exists(path)) return;
         try (Stream<Path> all = Files.walk(path)) {
             for (Path p : all.sorted(Comparator.reverseOrder()).toList()) Files.deleteIfExists(p);
+        } catch (UncheckedIOException e) {
+            throw e.getCause();
         }
     }
 
