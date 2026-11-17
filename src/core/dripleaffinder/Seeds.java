@@ -1,10 +1,13 @@
 package dripleaffinder;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
+import java.util.HexFormat;
 import java.util.Map;
 import java.util.Objects;
 import net.minecraft.client.Minecraft;
@@ -65,14 +68,27 @@ public final class Seeds {
         Path saved = Finder.DATA.resolve(key).resolve("predictions.tsv");
         try {
             if (before != null && Files.exists(saved)) {
-                String aside = "predictions-" + before.replaceAll("[^A-Za-z0-9-]", "") + ".tsv";
-                Files.move(saved, saved.resolveSibling(aside), StandardCopyOption.REPLACE_EXISTING);
-                Finder.message("Predictions from seed " + before + " set aside (" + aside + ").");
+                String name = asideName(before);
+                Path aside = saved.resolveSibling(name + ".tsv");
+                for (int n = 2; Files.exists(aside); n++) aside = saved.resolveSibling(name + "-" + n + ".tsv");
+                Files.move(saved, aside);
+                Finder.message("Predictions from seed " + before + " set aside (" + aside.getFileName() + ").");
             }
         } catch (IOException e) {
             Finder.message("Could not set aside the predictions of seed " + before + ": " + e.getMessage());
         }
         if (key.equals(finder.memory.key())) finder.reloadData();
+    }
+
+    static String asideName(String seed) {
+        String text = seed.replaceAll("[^A-Za-z0-9-]", "");
+        text = text.substring(0, Math.min(32, text.length()));
+        try {
+            byte[] sha = MessageDigest.getInstance("SHA-1").digest(seed.getBytes(StandardCharsets.UTF_8));
+            return "predictions-" + (text.isEmpty() ? "" : text + "-") + HexFormat.of().formatHex(sha, 0, 4);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     public String typedSeed() {

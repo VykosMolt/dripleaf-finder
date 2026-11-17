@@ -110,6 +110,10 @@ public final class ClientCheck {
                 SeedSearch.brief("Failed: a.b.Outer$Inner", 40), SeedSearch.brief("Failed: out of memory", 40)),
             java.util.List.of("Failed: IllegalStateException: Not enou…", "Could not start: UnknownHostException: …",
                 "Failed: Outer$Inner", "Failed: out of memory"));
+        java.util.List<String> asides = java.util.stream.Stream.of("1.5", "15", "种子", "семя", "-42").map(Seeds::asideName).toList();
+        expect("set-aside names", java.util.List.of(new HashSet<>(asides).size(), asides.get(1).startsWith("predictions-15-"),
+                asides.get(2).matches("predictions-[0-9a-f]{8}"), asides.get(4).matches("predictions--42-[0-9a-f]{8}"), Seeds.asideName("15")),
+            java.util.List.of(5, true, true, true, asides.get(1)));
 
         System.out.println("CLIENT CHECK PASSED: 2 azalea trees, trunkless leaves dropped; data rows, box edges, memory, data keys, host names,"
             + " server versions, server types, folia guidance, splice guidance, search memory");
