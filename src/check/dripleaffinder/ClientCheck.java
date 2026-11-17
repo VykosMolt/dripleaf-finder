@@ -212,27 +212,37 @@ public final class ClientCheck {
             java.nio.file.Files.createDirectories(jar.getParent());
             java.nio.file.Files.writeString(jar, "jar");
         }
+        java.nio.file.Path loader = user.resolve("загрузчик.jar"), classes = user.resolve("クラス");
+        java.nio.file.Files.writeString(loader, "loader");
+        java.nio.file.Files.createDirectories(classes.resolve("dripleaffinder"));
+        java.nio.file.Files.writeString(classes.resolve("dripleaffinder/Sample.class"), "bytecode");
+        String localLoader = "jars/" + Searchers.sha1(loader) + ".jar";
         java.util.List<String> command = SearchRun.command(dir, 300, new Searchers.Launch(jars.get(0), jars.subList(1, 3),
-            java.util.List.of("/prism/libraries/fabric-loader.jar"), jars.subList(3, 5)));
+            java.util.List.of(loader.toString()), jars.subList(3, 5)));
         String localJar = "jars/" + Searchers.sha1(jars.get(4)) + ".jar";
         boolean copied = java.nio.file.Files.readString(dir.resolve(localJar)).equals("jar");
         java.util.List<java.nio.file.Path> renamed = java.util.List.of(user.resolve("种子.jar"), user.resolve("世界.jar"));
         java.nio.file.Files.writeString(renamed.get(0), "first");
         java.nio.file.Files.writeString(renamed.get(1), "second");
         java.util.List<String> collision = SearchRun.command(dir, 300, new Searchers.Launch(jars.get(0), renamed,
-            java.util.List.of("/prism/libraries/fabric-loader.jar"), java.util.List.of()));
+            java.util.List.of(loader.toString(), classes.toString()), java.util.List.of()));
         String[] copies = collision.get(4).substring("-Dfabric.addMods=".length()).split(java.util.regex.Pattern.quote(java.io.File.pathSeparator));
         expect("renamed search jars", java.util.List.of(copies.length, !copies[0].equals(copies[1]),
                 java.nio.file.Files.readString(dir.resolve(copies[0])), java.nio.file.Files.readString(dir.resolve(copies[1])),
                 java.util.Arrays.stream(copies).allMatch(s -> s.chars().allMatch(c -> c < 128))),
             java.util.List.of(2, true, "first", "second", true));
+        String[] classpath = collision.get(7).split(java.util.regex.Pattern.quote(java.io.File.pathSeparator));
+        expect("Unicode search classpath", java.util.List.of(classpath.length, java.nio.file.Files.readString(dir.resolve(classpath[0])),
+                java.nio.file.Files.readString(dir.resolve(classpath[1]).resolve("dripleaffinder/Sample.class")),
+                java.util.Arrays.stream(classpath).allMatch(s -> !java.nio.file.Path.of(s).isAbsolute() && s.chars().allMatch(c -> c < 128))),
+            java.util.List.of(2, "loader", "bytecode", true));
         try (java.util.stream.Stream<java.nio.file.Path> all = java.nio.file.Files.walk(root)) {
             for (java.nio.file.Path p : all.sorted(java.util.Comparator.reverseOrder()).toList()) java.nio.file.Files.delete(p);
         }
         expect("search command line", java.util.List.of(command.subList(1, command.size()), copied), java.util.List.of(java.util.List.of(
             "-Xmx1124M", "-XX:+ExitOnOutOfMemoryError", "-Dfabric.gameJarPath=../../cache/1.21.3/server.jar",
             "-Dfabric.addMods=../../cache/searchers/engine.jar:../../../mods/dripleaf.jar", "-Ddripleaffinder.search=search.properties", "-cp",
-            "/prism/libraries/fabric-loader.jar:../../cache/1.21.3/intermediary.jar:" + localJar, "net.fabricmc.loader.impl.launch.knot.KnotServer",
+            localLoader + ":../../cache/1.21.3/intermediary.jar:" + localJar, "net.fabricmc.loader.impl.launch.knot.KnotServer",
             "nogui"), true));
     }
 
@@ -264,6 +274,16 @@ public final class ClientCheck {
                     java.util.List.of(false, false));
                 stamp = changed;
             }
+            java.nio.file.Path classes = root.resolve("classes"), file = classes.resolve("Example.class");
+            java.nio.file.Files.createDirectories(classes);
+            java.nio.file.Files.writeString(file, "old");
+            Searchers.Launch directories = new Searchers.Launch(jars.get(0), java.util.List.of(jars.get(1)),
+                java.util.List.of(classes.toString()), java.util.List.of(jars.get(3)));
+            String before = SearchRun.jars(directories);
+            java.nio.file.attribute.FileTime modified = java.nio.file.Files.getLastModifiedTime(file);
+            java.nio.file.Files.writeString(file, "new");
+            java.nio.file.Files.setLastModifiedTime(file, modified);
+            expect("changed classpath directory", before.equals(SearchRun.jars(directories)), false);
         } finally {
             try (java.util.stream.Stream<java.nio.file.Path> all = java.nio.file.Files.walk(root)) {
                 for (java.nio.file.Path path : all.sorted(java.util.Comparator.reverseOrder()).toList()) java.nio.file.Files.delete(path);

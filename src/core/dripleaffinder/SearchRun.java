@@ -7,6 +7,7 @@ import java.io.UncheckedIOException;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
+import java.nio.file.FileVisitOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -103,16 +104,28 @@ final class SearchRun {
         for (String entry : launch.classpath()) all.add(Path.of(entry));
         StringBuilder out = new StringBuilder();
         for (Path jar : all) {
-            out.append(jar.toAbsolutePath());
-            if (Files.isRegularFile(jar)) out.append('\t').append(Searchers.sha1(jar));
-            out.append('\n');
+            List<Path> entries;
+            if (Files.isDirectory(jar)) {
+                try (Stream<Path> files = Files.walk(jar, FileVisitOption.FOLLOW_LINKS)) {
+                    entries = files.sorted().toList();
+                }
+            } else entries = List.of(jar);
+            for (Path entry : entries) {
+                out.append(entry.toAbsolutePath());
+                if (Files.isRegularFile(entry)) out.append('\t').append(Searchers.sha1(entry));
+                out.append('\n');
+            }
         }
         return out.toString();
     }
 
     static List<String> command(Path dir, int radius, Searchers.Launch launch) throws IOException {
-        List<String> mods = new ArrayList<>(), classpath = new ArrayList<>(launch.classpath());
+        List<String> mods = new ArrayList<>(), classpath = new ArrayList<>();
         for (Path mod : launch.mods()) mods.add(local(dir, mod));
+        for (String entry : launch.classpath()) {
+            Path path = Path.of(entry);
+            if (Files.exists(path)) classpath.add(local(dir, path));
+        }
         for (Path library : launch.libraries()) classpath.add(local(dir, library));
         return List.of(ProcessHandle.current().info().command().orElse("java"), "-Xmx" + heapMb(radius) + "M", "-XX:+ExitOnOutOfMemoryError",
             "-Dfabric.gameJarPath=" + local(dir, launch.gameJar()), "-Dfabric.addMods=" + String.join(File.pathSeparator, mods),
@@ -127,9 +140,22 @@ final class SearchRun {
             if (relative.chars().allMatch(c -> c < 128)) return relative;
         } catch (IllegalArgumentException otherDrive) {
         }
-        Path copy = from.resolve("jars").resolve(Searchers.sha1(real) + ".jar");
-        Files.createDirectories(copy.getParent());
-        Files.copy(real, copy, StandardCopyOption.REPLACE_EXISTING);
+        Path copies = from.resolve("jars");
+        Files.createDirectories(copies);
+        Path copy;
+        if (Files.isDirectory(real)) {
+            copy = Files.createTempDirectory(copies, "classes-");
+            try (Stream<Path> files = Files.walk(real, FileVisitOption.FOLLOW_LINKS)) {
+                for (Path file : files.toList()) {
+                    Path target = copy.resolve(real.relativize(file));
+                    if (Files.isDirectory(file)) Files.createDirectories(target);
+                    else Files.copy(file, target, StandardCopyOption.REPLACE_EXISTING);
+                }
+            }
+        } else {
+            copy = copies.resolve(Searchers.sha1(real) + ".jar");
+            Files.copy(real, copy, StandardCopyOption.REPLACE_EXISTING);
+        }
         return from.relativize(copy).toString();
     }
 
