@@ -46,8 +46,8 @@ EOF
 
 norm() {
   grep '^hit' "$1"
-  grep '^lush' "$1" | sort
-  sed -n 's/^status\t[0-9]* candidates among \([0-9]*\) small.*/plants\t\1/p' "$1"
+  grep '^lush' "$1" | LC_ALL=C sort
+  sed -n -e '/^plants\t/p' -e 's/^status\t[0-9]* candidates among \([0-9]*\) small.*/plants\t\1/p' "$1"
 }
 
 run() {
@@ -91,10 +91,12 @@ for v in 1.21.11 1.21.3 26.2; do
     d="$W/run/$v-$order"
     [ -f "$d/got" ] && sed "s/^/$v\t$order\t/" "$d/got" >> "$W/all"
     if [ -f "$d/error" ]; then echo "$v $order FAIL $(cat "$d/error")"; fail=1; continue; fi
+    awk -F'\t' -v v="$v" -v o="$order" '$1 == v && $2 == o' "$EXPECTED" | cut -f3- > "$d/expected"
+    norm "$d/expected" > "$d/want"
     summary="$(grep -c '^hit' "$d/got") hits, $(grep -c '^lush' "$d/got") lush, $(sed -n 's/^plants\t//p' "$d/got") plants"
     if ! grep -q '^done' "$d/results.tsv"; then
       echo "$v $order FAIL search did not finish: $( (grep -m1 -E 'Incompatible|Exception|Error' "$d/server.log" || tail -1 "$d/server.log") | cut -c1-200)"; fail=1
-    elif diff <(awk -F'\t' -v v="$v" -v o="$order" '$1 == v && $2 == o' "$EXPECTED" | cut -f3-) "$d/got" > "$d/diff"; then
+    elif diff "$d/want" "$d/got" > "$d/diff"; then
       echo "$v $order PASS $summary"
     else
       echo "$v $order FAIL $summary"; sed 's/^/  /' "$d/diff"; fail=1
