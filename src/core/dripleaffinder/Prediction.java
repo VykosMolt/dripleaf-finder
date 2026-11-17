@@ -13,7 +13,11 @@ record Prediction(BlockPos pos, String half, String below, String note, boolean 
             ordered ? f[8] : null, ordered ? f[9] : null);
     }
 
-    String why() {
-        return first == null ? note : Guidance.text(pos.getX(), pos.getZ(), below, first, then);
+    boolean anyOrder() {
+        return Guidance.anyOrder(first, then);
+    }
+
+    String text(boolean folia) {
+        return half + " half, " + (first == null ? note : Guidance.text(pos.getX(), pos.getZ(), below, first, then, folia));
     }
 }

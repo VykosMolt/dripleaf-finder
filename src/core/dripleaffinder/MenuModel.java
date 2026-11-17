@@ -6,6 +6,7 @@ import java.util.function.Consumer;
 public interface MenuModel {
     String AUTO = "Auto";
     int MIN_RADIUS = 64, MAX_RADIUS = SeedSearch.MAX_RADIUS, RADIUS_STEP = 64;
+    int DEFAULT_RADIUS = Math.round(SeedSearch.DEFAULT_RADIUS / (float) RADIUS_STEP) * RADIUS_STEP;
 
     boolean enabled();
 
@@ -41,17 +42,27 @@ public interface MenuModel {
 
     void setVersion(String version);
 
+    List<String> serverTypes();
+
+    String serverType();
+
+    void setServerType(String type);
+
     int radius();
 
     void setRadius(int radius);
 
     int memoryGb();
 
+    int defaultMemoryGb();
+
     int maxMemoryGb();
 
     void setMemoryGb(int gb);
 
     String status();
+
+    String candidates();
 
     boolean searching();
 

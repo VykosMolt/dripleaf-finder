@@ -36,7 +36,8 @@ public final class Finder {
     public final Settings settings;
     final Set<BlockPos> found = new HashSet<>();
     private final Set<LevelChunk> scanned = Collections.newSetFromMap(new WeakHashMap<>());
-    final Map<BlockPos, String> predicted = new HashMap<>();
+    final Map<BlockPos, Prediction> predicted = new HashMap<>();
+    boolean folia;
     private final Map<BlockPos, Integer> near = new HashMap<>();
     private final Map<BlockPos, Integer> lush = new HashMap<>();
     private final List<AABB> azaleas = new ArrayList<>();
@@ -122,15 +123,28 @@ public final class Finder {
         clearWorld();
         level = next;
         memory.enter(DataKey.of(Compat.serverAddress(mc), Compat.singleplayerWorld(mc)));
+        checkServerType();
         reloadData();
         if (!predicted.isEmpty() && !memory.predictionsAnnounced && mc.player != null) {
             memory.predictionsAnnounced = true;
             BlockPos here = mc.player.blockPosition();
             message(predicted.size() + " spliced small dripleaf top halves predicted from the seed for " + memory.key() + ":");
             predicted.keySet().stream().sorted(Comparator.comparingDouble(pos -> pos.distSqr(here))).limit(5).forEach(pos ->
-                message("  " + pos.getX() + " " + pos.getY() + " " + pos.getZ() + " (" + predicted.get(pos) + ", "
+                message("  " + pos.getX() + " " + pos.getY() + " " + pos.getZ() + " (" + text(pos) + ", "
                     + (int) Math.sqrt(pos.distSqr(here)) + " blocks away)"));
         }
+    }
+
+    void checkServerType() {
+        folia = ServerType.FOLIA.equals(seeds.serverType()[0]);
+    }
+
+    String text(BlockPos pos) {
+        return predicted.get(pos).text(folia);
+    }
+
+    long candidates() {
+        return predicted.values().stream().filter(row -> !row.anyOrder()).count();
     }
 
     void reloadData() {
@@ -140,9 +154,7 @@ public final class Finder {
         Path folder = DATA.resolve(memory.key());
         for (String line : lines(folder.resolve("predictions.tsv"))) {
             Prediction row = Prediction.parse(line);
-            if (row == null || !row.survived()) continue;
-            String text = row.half() + " half, " + row.why();
-            if (!memory.settled.contains(row.pos())) predicted.put(row.pos(), text);
+            if (row != null && row.survived()) addPrediction(row);
         }
         for (String line : lines(folder.resolve("lush.tsv"))) {
             int[] f = Data.ints(line, 4);
@@ -158,8 +170,8 @@ public final class Finder {
         memory.predictionsAnnounced = true;
     }
 
-    void addPrediction(BlockPos pos, String text) {
-        if (level != null && Compat.overworld(level) && !memory.settled.contains(pos)) predicted.put(pos, text);
+    void addPrediction(Prediction row) {
+        if (level != null && Compat.overworld(level) && !memory.settled.contains(row.pos())) predicted.put(row.pos(), row);
     }
 
     void announceSavedOnReturn(String key) {
@@ -213,7 +225,7 @@ public final class Finder {
         }
         BlockPos here = Minecraft.getInstance().player.blockPosition();
         predicted.keySet().stream().sorted(Comparator.comparingDouble(pos -> pos.distSqr(here))).limit(5).forEach(pos ->
-            message("Predicted at " + pos.getX() + " " + pos.getY() + " " + pos.getZ() + " (" + predicted.get(pos)
+            message("Predicted at " + pos.getX() + " " + pos.getY() + " " + pos.getZ() + " (" + text(pos)
                 + ", " + (int) Math.sqrt(pos.distSqr(here)) + " blocks away)"));
     }
 
@@ -226,6 +238,7 @@ public final class Finder {
         if (mc.level != level) enterWorld(mc, mc.level);
         if (ticks % 100 == 0) scanned.clear();
         if (ticks++ % 10 != 0) return;
+        checkServerType();
         boolean masked = settings.masked;
         found.removeIf(pos -> {
             LevelChunk chunk = Compat.loadedChunk(level, pos.getX() >> 4, pos.getZ() >> 4);

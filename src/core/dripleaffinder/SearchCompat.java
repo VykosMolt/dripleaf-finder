@@ -34,7 +34,7 @@ final class SearchCompat {
     }
 
     static BlockPos spawn(ServerLevel level) {
-        return level.getRespawnData().pos();
+        return SpawnCompat.spawn(level);
     }
 
     static int minY(ChunkAccess chunk) {

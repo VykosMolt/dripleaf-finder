@@ -66,11 +66,11 @@ final class RealWorldScenario implements Scenario {
             if (ticks - arrivedAt > 20 * 3000) smoke.shoot(mc, "FAIL search still running after 50 min");
             return;
         }
-        String last = finder.search.lastResult;
+        String last = finder.search.lastResult();
         boolean done = last != null && last.startsWith("Done:");
         if (done && finder.search.hits.isEmpty() && !widened && radius < 1500) {
             widened = true;
-            finder.search.lastResult = null;
+            finder.search.results.remove(Finder.connectionKey(mc));
             finder.search.start(mc, 1500, false);
             return;
         }
@@ -130,7 +130,7 @@ final class RealWorldScenario implements Scenario {
         double[] from = Guidance.approach(hit[2], hit[3]);
         String order = from == null ? "any" : String.format(Locale.ROOT, "%.3f %.3f", from[0], from[1]);
         chosenText = chosen.getX() + " " + chosen.getY() + " " + chosen.getZ() + " (" + hit[1] + "; "
-            + Guidance.text(chosen.getX(), chosen.getZ(), hit[0], hit[2], hit[3]) + ")";
+            + Guidance.text(chosen.getX(), chosen.getZ(), hit[0], hit[2], hit[3], finder.folia) + ")";
         searchDoneAt = smoke.ticks;
         arrivedAt = -1;
         try {

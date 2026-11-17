@@ -19,8 +19,7 @@ for line in open(os.path.join(HERE, 'nodes.tsv')):
     d = os.path.join(HERE, mc)
     os.makedirs(d, exist_ok=True)
     open(os.path.join(d, 'settings.gradle.kts'), 'w').write(SETTINGS.format(mc=mc))
-    props = {'mc': mc, 'mc_range': extra.pop('mc_range', mc), 'range_name': extra.pop('range_name', mc), 'java': java,
-             'fabric_api': fapi, 'loader': '0.20.1', 'eras': eras, 'autism': extra.pop('autism', 'false'),
+    props = {'mc': mc, 'java': java, 'fabric_api': fapi, 'loader': '0.20.1', 'eras': eras,
              'mod_version': '1.2.0', 'org.gradle.jvmargs': '-Xmx3G',
              'org.gradle.java.installations.paths': ','.join(os.path.expanduser(f'~/.local/share/PrismLauncher/java/java-runtime-{r}')
                                                               for r in ('gamma', 'delta', 'epsilon')),

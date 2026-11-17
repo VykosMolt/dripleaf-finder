@@ -1,7 +1,5 @@
 package dripleaffinder;
 
-import com.sun.management.OperatingSystemMXBean;
-import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
@@ -10,13 +8,10 @@ import net.minecraft.client.Minecraft;
 final class FinderMenu implements MenuModel {
     private final Finder finder;
     private final Settings settings;
-    private final int maxMemoryGb;
 
     FinderMenu(Finder finder) {
         this.finder = finder;
         settings = finder.settings;
-        long bytes = ((OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean()).getTotalMemorySize();
-        maxMemoryGb = Math.max(1, (int) (bytes >> 30) - 2);
     }
 
     public boolean enabled() {
@@ -90,6 +85,21 @@ final class FinderMenu implements MenuModel {
         finder.seeds.setVersion(AUTO.equals(version) ? null : version);
     }
 
+    public List<String> serverTypes() {
+        List<String> types = new ArrayList<>(ServerType.TYPES);
+        types.add(0, AUTO);
+        return types;
+    }
+
+    public String serverType() {
+        String typed = finder.seeds.typedServerType();
+        return typed == null ? AUTO : typed;
+    }
+
+    public void setServerType(String type) {
+        finder.seeds.setServerType(AUTO.equals(type) ? null : type);
+    }
+
     public int radius() {
         return Math.max(MIN_RADIUS, Math.min(MAX_RADIUS, settings.radius));
     }
@@ -102,22 +112,39 @@ final class FinderMenu implements MenuModel {
     }
 
     public int memoryGb() {
-        return Math.max(1, Math.min(maxMemoryGb, settings.memoryGb));
+        return settings.memoryGb();
+    }
+
+    public int defaultMemoryGb() {
+        return Settings.memoryGb(null, Settings.TOTAL_MEMORY);
     }
 
     public int maxMemoryGb() {
-        return maxMemoryGb;
+        return Settings.maxMemoryGb(Settings.TOTAL_MEMORY);
     }
 
     public void setMemoryGb(int gb) {
-        gb = Math.max(1, Math.min(maxMemoryGb, gb));
-        if (settings.memoryGb == gb) return;
+        gb = Math.max(1, Math.min(maxMemoryGb(), gb));
+        if (settings.memoryGb() == gb) return;
         settings.memoryGb = gb;
         settings.save();
     }
 
     public String status() {
         return finder.search.status();
+    }
+
+    public String candidates() {
+        if (!inWorld()) return "";
+        if (!enabled()) return "Finder off";
+        return candidates(finder.predicted.size(), finder.seeds.serverType()[0], finder.seeds.typedServerType() == null,
+            finder.folia ? finder.candidates() : 0);
+    }
+
+    static String candidates(int here, String type, boolean auto, long chance) {
+        String text = here + " here · " + type + (auto ? " (auto)" : "");
+        if (chance == 0) return text;
+        return text + ", " + (chance == here ? Guidance.FOLIA_ODDS + " each" : chance + " at " + Guidance.FOLIA_ODDS);
     }
 
     public boolean searching() {
@@ -129,6 +156,6 @@ final class FinderMenu implements MenuModel {
     }
 
     public void stop() {
-        finder.search.stop();
+        finder.search.stop(false);
     }
 }

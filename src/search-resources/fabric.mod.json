@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "dripleaf-finder",
+  "version": "${version}",
+  "name": "Dripleaf Finder seed search",
+  "description": "The seed search Dripleaf Finder runs in a background server for ${mc} worlds.",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["dripleaffinder.Searcher"]
+  },
+  "depends": {
+    "minecraft": "${mc}",
+    "fabricloader": ">=0.15.0",
+    "fabric-api-base": "*",
+    "java": ">=${java}"
+  }
+}

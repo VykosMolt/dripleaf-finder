@@ -2,7 +2,9 @@ package dripleaffinder;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.sun.management.OperatingSystemMXBean;
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -13,9 +15,24 @@ public final class Settings {
     public boolean masked = false;
     public boolean lush = true;
     public boolean azalea = true;
-    public int radius = Math.round(SeedSearch.DEFAULT_RADIUS / (float) MenuModel.RADIUS_STEP) * MenuModel.RADIUS_STEP;
-    public int memoryGb = 4;
+    public int radius = MenuModel.DEFAULT_RADIUS;
+    public Integer memoryGb;
     private transient Path file;
+
+    static final long TOTAL_MEMORY = ((OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean()).getTotalMemorySize();
+
+    static int maxMemoryGb(long totalBytes) {
+        return Math.max(1, (int) (totalBytes >> 30) - 2);
+    }
+
+    static int memoryGb(Integer stored, long totalBytes) {
+        int max = maxMemoryGb(totalBytes);
+        return stored == null ? Math.min(max, Math.max(4, (int) (totalBytes >> 31))) : Math.max(1, Math.min(max, stored));
+    }
+
+    int memoryGb() {
+        return memoryGb(memoryGb, TOTAL_MEMORY);
+    }
 
     static Settings load(Path file) {
         Settings settings = null;

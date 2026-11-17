@@ -1,13 +1,17 @@
 package dripleaffinder;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
+import java.util.HexFormat;
 import java.util.Map;
 import java.util.Objects;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientPacketListener;
 
 public final class Seeds {
     private final Finder finder;
@@ -58,20 +62,33 @@ public final class Seeds {
     private void seedChanged(String key, String before) {
         if (Objects.equals(before, seed(key))) return;
         if (finder.search.searching(key)) {
-            finder.search.stop();
-            Finder.message("(It was for seed " + before + ".)");
+            finder.search.stop(false);
+            finder.search.results.put(key, "Stopped: seed changed");
         }
         Path saved = Finder.DATA.resolve(key).resolve("predictions.tsv");
         try {
             if (before != null && Files.exists(saved)) {
-                String aside = "predictions-" + before.replaceAll("[^A-Za-z0-9-]", "") + ".tsv";
-                Files.move(saved, saved.resolveSibling(aside), StandardCopyOption.REPLACE_EXISTING);
-                Finder.message("Predictions from seed " + before + " set aside (" + aside + ").");
+                String name = asideName(before);
+                Path aside = saved.resolveSibling(name + ".tsv");
+                for (int n = 2; Files.exists(aside); n++) aside = saved.resolveSibling(name + "-" + n + ".tsv");
+                Files.move(saved, aside);
+                Finder.message("Predictions from seed " + before + " set aside (" + aside.getFileName() + ").");
             }
         } catch (IOException e) {
             Finder.message("Could not set aside the predictions of seed " + before + ": " + e.getMessage());
         }
         if (key.equals(finder.memory.key())) finder.reloadData();
+    }
+
+    static String asideName(String seed) {
+        String text = seed.replaceAll("[^A-Za-z0-9-]", "");
+        text = text.substring(0, Math.min(32, text.length()));
+        try {
+            byte[] sha = MessageDigest.getInstance("SHA-1").digest(seed.getBytes(StandardCharsets.UTF_8));
+            return "predictions-" + (text.isEmpty() ? "" : text + "-") + HexFormat.of().formatHex(sha, 0, 4);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     public String typedSeed() {
@@ -165,5 +182,42 @@ public final class Seeds {
     void showVersion() {
         String[] v = generationVersion();
         Finder.message("Seed searches use " + v[0] + " world generation (" + v[1] + ").");
+    }
+
+    static String brand() {
+        ClientPacketListener connection = Minecraft.getInstance().getConnection();
+        return connection == null ? null : connection.serverBrand();
+    }
+
+    String[] serverType() {
+        String typed = typedServerType(), brand = brand();
+        if (typed != null) return new String[] {typed, "chosen"};
+        return new String[] {ServerType.fromBrand(brand), brand == null ? "no brand announced" : "brand \"" + brand + "\""};
+    }
+
+    public String typedServerType() {
+        return read(key(), "server-type.txt");
+    }
+
+    public void setServerType(String type) {
+        String key = key();
+        if (key == null) {
+            Finder.message("Join a world first: the server type is kept per server.");
+            return;
+        }
+        if (type != null && !ServerType.TYPES.contains(type)) {
+            Finder.message("No server type " + type + ": " + String.join(", ", ServerType.TYPES) + ".");
+            return;
+        }
+        if (Objects.equals(type, read(key, "server-type.txt"))) return;
+        try {
+            write(key, "server-type.txt", type);
+        } catch (IOException e) {
+            Finder.message("Could not save the server type: " + e.getMessage());
+            return;
+        }
+        finder.checkServerType();
+        String[] t = serverType();
+        Finder.message("Server Type for " + key + ": " + t[0] + " (" + t[1] + ").");
     }
 }

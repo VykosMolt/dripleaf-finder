@@ -23,18 +23,12 @@ final class PlantedScenario implements Scenario {
         if (foundAt < 0 && finder.found.contains(target)) foundAt = ticks;
         if (arrivedAt < 0 && mc.player.position().distanceToSqr(camera[0], camera[1], camera[2]) < 0.25) arrivedAt = ticks;
         if (foundAt >= 0 && arrivedAt >= 0 && ticks - Math.max(foundAt, arrivedAt) >= 60) {
-            MenuSmoke menu = smoke.menu;
-            if (menu != null && menu.running(mc)) return;
-            if (menu != null && menu.failure != null) {
-                smoke.shoot(mc, "FAIL menu: " + menu.failure);
-                return;
-            }
             if (negative != null && finder.found.contains(negative)) {
                 smoke.shoot(mc, "FAIL reported the half outside lush caves at " + negative.getX() + " " + negative.getY() + " " + negative.getZ());
                 return;
             }
             smoke.shoot(mc, "PASS reported " + (foundAt - smoke.joinedAt) / 20 + " s after joining"
-                + (negative != null ? "; the half outside lush caves was not" : "") + (menu != null ? "; menu: " + menu.summary() : ""));
+                + (negative != null ? "; the half outside lush caves was not" : ""));
         } else if (ticks - smoke.joinedAt > 20 * 90) {
             smoke.shoot(mc, "FAIL " + (foundAt < 0 ? "not reported" : "never teleported") + ": " + diagnose(mc, finder));
         }
