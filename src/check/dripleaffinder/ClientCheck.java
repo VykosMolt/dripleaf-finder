@@ -114,6 +114,15 @@ public final class ClientCheck {
         expect("set-aside names", java.util.List.of(new HashSet<>(asides).size(), asides.get(1).startsWith("predictions-15-"),
                 asides.get(2).matches("predictions-[0-9a-f]{8}"), asides.get(4).matches("predictions--42-[0-9a-f]{8}"), Seeds.asideName("15")),
             java.util.List.of(5, true, true, true, asides.get(1)));
+        java.util.Map<BlockPos, String[]> found = new java.util.LinkedHashMap<>();
+        found.put(new BlockPos(500, 40, 500), new String[] {"air", "asc", "-", "-"});
+        java.util.List<String> old = java.util.List.of("10\t40\t10\ttop\tair\tasc\tyes\t1", "300\t40\t300\ttop\tair\tasc\tyes\t1",
+            "5000\t40\t5000\ttop\tair\tasc\tyes\t1", "500\t40\t500\ttop\tair\tdesc\tyes\t1");
+        java.util.function.BiFunction<int[], Boolean, java.util.List<String>> merged = (spawn, replace) -> SeedSearch.mergePredictions(old, found,
+                new BlockPos(0, 64, 0), 1000, spawn, replace).stream().map(line -> line.split("\t")[0] + line.split("\t")[5]).toList();
+        expect("merged predictions", java.util.List.of(merged.apply(new int[] {0, 0, 64}, true), merged.apply(null, true), merged.apply(null, false)),
+            java.util.List.of(java.util.List.of("10asc", "5000asc", "500asc"), java.util.List.of("5000asc", "500asc"),
+                java.util.List.of("10asc", "300asc", "5000asc", "500asc")));
 
         System.out.println("CLIENT CHECK PASSED: 2 azalea trees, trunkless leaves dropped; data rows, box edges, memory, data keys, host names,"
             + " server versions, server types, folia guidance, splice guidance, search memory");

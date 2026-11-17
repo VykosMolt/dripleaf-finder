@@ -29,6 +29,7 @@ public final class SeedSearch {
     private final List<String> failures = new ArrayList<>();
     String lastResult;
     private String leftOut;
+    private int[] spawn;
     private static final Object SETUP = new Object();
     private volatile int generation;
     private volatile Setup setup;
@@ -115,6 +116,7 @@ public final class SeedSearch {
         failed.clear();
         failures.clear();
         leftOut = null;
+        spawn = null;
         missedLive = false;
         Setup mine = new Setup(++generation);
         setup = mine;
@@ -289,8 +291,11 @@ public final class SeedSearch {
                 else if (f[1].contains(" candidates among ")) run.progress = "checking " + w[0] + " candidates";
             }
             case "lush" -> lush.add(String.join("\t", f[1], f[2], f[3], f[4]));
-            case "spawn" -> leftOut = " Left out: about " + f[3] + " blocks around the world spawn at " + f[1] + " " + f[2]
-                + ", which the search server generates at startup in no fixed order.";
+            case "spawn" -> {
+                spawn = new int[] {Integer.parseInt(f[1]), Integer.parseInt(f[2]), Integer.parseInt(f[3])};
+                leftOut = " Left out: about " + f[3] + " blocks around the world spawn at " + f[1] + " " + f[2]
+                    + ", which the search server generates at startup in no fixed order.";
+            }
             case "hit" -> {
                 BlockPos pos = new BlockPos(Integer.parseInt(f[1]), Integer.parseInt(f[2]), Integer.parseInt(f[3]));
                 String[] known = hits.get(pos);
@@ -331,7 +336,8 @@ public final class SeedSearch {
         try {
             Files.createDirectories(folder);
             if (!lush.isEmpty()) Files.write(folder.resolve("lush.tsv"), mergeLush(Data.lines(folder.resolve("lush.tsv")), lush));
-            Files.write(folder.resolve("predictions.tsv"), mergePredictions(Data.lines(folder.resolve("predictions.tsv")), complete));
+            Files.write(folder.resolve("predictions.tsv"), mergePredictions(Data.lines(folder.resolve("predictions.tsv")), hits, center, radius, spawn,
+                complete));
         } catch (IOException e) {
             saveError = "Could not save the search results: " + e.getMessage();
         }
@@ -374,14 +380,16 @@ public final class SeedSearch {
             .map(f -> f[0] + "\t" + f[1] + "\t" + f[2] + "\t" + f[3]).toList();
     }
 
-    List<String> mergePredictions(List<String> old, boolean replaceArea) {
+    static List<String> mergePredictions(List<String> old, Map<BlockPos, String[]> hits, BlockPos center, int radius, int[] spawn,
+            boolean replaceArea) {
         List<String> lines = new ArrayList<>();
         for (String line : old) {
             long[] f = numbers(line, 3);
             if (f == null) continue;
             boolean inside = Math.abs(f[0] - center.getX()) <= radius && Math.abs(f[2] - center.getZ()) <= radius;
+            boolean leftOut = spawn != null && Math.abs(f[0] - spawn[0]) <= spawn[2] && Math.abs(f[2] - spawn[1]) <= spawn[2];
             BlockPos pos = new BlockPos((int) f[0], (int) f[1], (int) f[2]);
-            if ((!inside || !replaceArea) && !hits.containsKey(pos)) lines.add(line);
+            if ((!inside || !replaceArea || leftOut) && !hits.containsKey(pos)) lines.add(line);
         }
         hits.forEach((pos, h) -> lines.add(pos.getX() + "\t" + pos.getY() + "\t" + pos.getZ() + "\ttop\t" + h[0] + "\t" + h[1] + "\tyes\t"
             + (int) Math.hypot(pos.getX() - center.getX(), pos.getZ() - center.getZ()) + "\t" + h[2] + "\t" + h[3]));
