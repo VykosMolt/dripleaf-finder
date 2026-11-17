@@ -73,10 +73,6 @@ public final class Finder {
         memory.forget();
     }
 
-    public void toggle() {
-        setEnabled(!enabled());
-    }
-
     public void setMasked(boolean on) {
         if (settings.masked == on) return;
         settings.masked = on;
@@ -226,7 +222,6 @@ public final class Finder {
             return;
         }
         if (mc.level != level) enterWorld(mc, mc.level);
-        if (ticks % 100 == 0) scanned.clear();
         if (ticks++ % 10 != 0) return;
         boolean masked = settings.masked;
         found.removeIf(pos -> {
@@ -238,7 +233,8 @@ public final class Finder {
         for (int dx = -radius; dx <= radius; dx++) {
             for (int dz = -radius; dz <= radius; dz++) {
                 LevelChunk chunk = Compat.loadedChunk(level, cx + dx, cz + dz);
-                if (chunk == null || !scanned.add(chunk)) continue;
+                if (chunk == null) continue;
+                if (!scanned.add(chunk) && Math.floorMod(chunk.getPos().x + chunk.getPos().z, 10) != ticks / 10 % 10) continue;
                 Splice.scan(chunk, masked, this::lushNear, this::report);
                 if (settings.azalea) Azalea.canopies(level, chunk).forEach(this::azalea);
             }
@@ -248,7 +244,7 @@ public final class Finder {
                 near.remove(pos);
                 return false;
             }
-            Boolean there = Splice.settle(level, pos, near.merge(pos, 10, Integer::sum), this::lushNear);
+            Boolean there = Splice.settle(level, pos, near.merge(pos, 10, Integer::sum), masked, this::lushNear);
             if (there == null) return false;
             if (there) report(pos, level.getBlockState(pos));
             else message("Predicted spliced dripleaf at " + pos.getX() + " " + pos.getY() + " " + pos.getZ() + " is not there");
