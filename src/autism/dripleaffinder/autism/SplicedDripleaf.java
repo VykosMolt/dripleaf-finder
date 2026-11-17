@@ -12,6 +12,7 @@ import dripleaffinder.MenuModel;
 final class SplicedDripleaf extends SimpleModule {
     private final MenuModel model;
     private final ActionSetting search;
+    private boolean synced;
 
     SplicedDripleaf(MenuModel model) {
         super("spliced", "Spliced Dripleaf Finder", "Finds small dripleaf top halves that have no bottom half.");
@@ -32,7 +33,13 @@ final class SplicedDripleaf extends SimpleModule {
         add(new StringSetting("status", "Status", "").readonlySummary());
         search = add(new ActionSetting("search", "Seed Search", this::searchOrStop).buttonLabel("Search").requiresWorld());
         model.onEnabledChanged(this::setEnabledSilently);
-        AddonEvents.onTick(mc -> search.buttonLabel(model.searching() ? "Stop" : "Search"));
+        AddonEvents.onTick(mc -> {
+            if (!synced) {
+                synced = true;
+                model.setEnabled(isEnabled());
+            }
+            search.buttonLabel(model.searching() ? "Stop" : "Search");
+        });
     }
 
     @Override
