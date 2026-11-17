@@ -25,7 +25,7 @@ final class Commands {
                 .then(RequiredArgumentBuilder.<S, String>argument("version", StringArgumentType.word())
                     .executes(c -> run(() -> finder.seeds.setVersion(StringArgumentType.getString(c, "version"))))))
             .then(LiteralArgumentBuilder.<S>literal("search")
-                .executes(c -> run(() -> finder.search.start(Minecraft.getInstance(), SeedSearch.DEFAULT_RADIUS, true)))
+                .executes(c -> run(() -> finder.search.start(Minecraft.getInstance(), finder.settings.radius, true)))
                 .then(LiteralArgumentBuilder.<S>literal("stop").executes(c -> run(() -> finder.search.stop(true))))
                 .then(RequiredArgumentBuilder.<S, Integer>argument("radius", IntegerArgumentType.integer(64, SeedSearch.MAX_RADIUS))
                     .executes(c -> run(() -> finder.search.start(Minecraft.getInstance(), IntegerArgumentType.getInteger(c, "radius"), true)))));
