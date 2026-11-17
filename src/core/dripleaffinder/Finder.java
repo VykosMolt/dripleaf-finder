@@ -45,7 +45,7 @@ public final class Finder {
     private Consumer<Boolean> enabledListener;
     private boolean settingsOwnedElsewhere;
 
-    final SeedSearch search = new SeedSearch(this);
+    public final SeedSearch search = new SeedSearch(this);
 
     Finder(Settings settings) {
         this.settings = settings;
@@ -163,7 +163,7 @@ public final class Finder {
         return memory.key();
     }
 
-    static String connectionKey(Minecraft mc) {
+    public static String connectionKey(Minecraft mc) {
         return mc.level == null ? null : DataKey.of(Compat.serverAddress(mc), Compat.singleplayerWorld(mc));
     }
 

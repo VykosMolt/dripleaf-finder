@@ -31,8 +31,8 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 
-final class SeedSearch {
-    static final int DEFAULT_RADIUS = 1000, MAX_RADIUS = 4000;
+public final class SeedSearch {
+    public static final int DEFAULT_RADIUS = 1000, MAX_RADIUS = 4000;
     static final String MANIFEST = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
     static final Pattern LOADER_JARS = Pattern.compile(
         "(fabric-loader|sponge-mixin|asm|asm-analysis|asm-commons|asm-tree|asm-util|mixinextras-fabric|mixinextras-common)-.*\\.jar");
@@ -119,11 +119,11 @@ final class SeedSearch {
         if (key.equals(finder.dataKey())) finder.reloadData();
     }
 
-    String typedSeed() {
+    public String typedSeed() {
         return Data.read(file(key(), "seed.txt"));
     }
 
-    void setSeed(String seed) {
+    public void setSeed(String seed) {
         String key = key();
         if (key == null) {
             Finder.message("Join a world first: the seed is kept per server.");
@@ -187,11 +187,11 @@ final class SeedSearch {
         return new String[] {version(), server == null ? "this client's" : "this client's: the server did not say which; /dripleaf version sets it"};
     }
 
-    String typedVersion() {
+    public String typedVersion() {
         return Data.read(file(key(), "version.txt"));
     }
 
-    void setVersion(String version) {
+    public void setVersion(String version) {
         String key = key();
         if (key == null) {
             Finder.message("Join a world first: the version is kept per server.");
@@ -229,7 +229,7 @@ final class SeedSearch {
         thread.start();
     }
 
-    void start(Minecraft mc, int radius) {
+    public void start(Minecraft mc, int radius) {
         if (running()) {
             Finder.message("A seed search is already running (/dripleaf search stop).");
             return;
@@ -308,7 +308,7 @@ final class SeedSearch {
         return setup != null || !runs.isEmpty();
     }
 
-    void stop() {
+    public void stop() {
         if (!running()) {
             Finder.message("No seed search is running.");
             return;

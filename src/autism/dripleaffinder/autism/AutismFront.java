@@ -6,7 +6,7 @@ import autismclient.api.module.SimpleModule;
 import autismclient.api.module.StringSetting;
 import dripleaffinder.DripleafClient;
 import dripleaffinder.Finder;
-import dripleaffinder.SeedSearchFront;
+import dripleaffinder.SeedSearch;
 import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -39,11 +39,11 @@ public final class AutismFront extends SimpleAddon {
             addBool("azalea", "Azalea Trees", finder.settings.azalea);
             add(seed.description("The seed for the server you are on; it always wins over the one SeedcrackerX cracks. Empty: SeedcrackerX's."));
             add(version.description("The Minecraft version that generated this server's world. Empty: the version the server reports."));
-            addInt("radius", "Search Radius", SeedSearchFront.DEFAULT_RADIUS, 64, SeedSearchFront.MAX_RADIUS, 64);
-            seedField = new Field(seed, () -> SeedSearchFront.typedSeed(finder), value -> SeedSearchFront.setSeed(finder, value));
-            versionField = new Field(version, () -> SeedSearchFront.typedVersion(finder), value -> SeedSearchFront.setVersion(finder, value));
+            addInt("radius", "Search Radius", SeedSearch.DEFAULT_RADIUS, 64, SeedSearch.MAX_RADIUS, 64);
+            seedField = new Field(seed, finder.search::typedSeed, finder.search::setSeed);
+            versionField = new Field(version, finder.search::typedVersion, finder.search::setVersion);
             add(new ActionSetting("search", "Seed Search", this::search).buttonLabel("Search").requiresWorld());
-            add(new ActionSetting("stopSearch", "Stop Seed Search", () -> SeedSearchFront.stop(finder)).buttonLabel("Stop"));
+            add(new ActionSetting("stopSearch", "Stop Seed Search", finder.search::stop).buttonLabel("Stop"));
             finder.attachFrontEnd(on -> {
                 if (isEnabled() != on) setEnabled(on);
             });
@@ -61,16 +61,16 @@ public final class AutismFront extends SimpleAddon {
         }
 
         private void search() {
-            seedField.flush(SeedSearchFront.key());
-            versionField.flush(SeedSearchFront.key());
-            SeedSearchFront.search(finder, Minecraft.getInstance(), getInt("radius"));
+            seedField.flush(Finder.connectionKey(Minecraft.getInstance()));
+            versionField.flush(Finder.connectionKey(Minecraft.getInstance()));
+            finder.search.start(Minecraft.getInstance(), getInt("radius"));
         }
 
         @Override
         public void tick() {
             if (!finder.enabled()) finder.setEnabled(true);
             for (String name : new String[] {"masked", "lush", "azalea"}) finder.apply(name, getBool(name));
-            String key = SeedSearchFront.key();
+            String key = Finder.connectionKey(Minecraft.getInstance());
             boolean second = ticks++ % 20 == 0;
             seedField.tick(key, second);
             versionField.tick(key, second);
