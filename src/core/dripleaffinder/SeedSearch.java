@@ -184,9 +184,10 @@ public final class SeedSearch {
             return last == null ? "No search yet" : last;
         }
         SearchRun current = runs.stream().filter(run -> !run.finished).findFirst().orElse(null);
-        String phase = current != null ? current.progress : pending != null ? pending.phase : "saving";
+        int index = current != null ? runs.indexOf(current) : runs.size(), passes = SearchRun.ORDERS.size();
+        String phase = current != null ? current.progress : pending != null && index < passes ? pending.phase : "saving";
         long seconds = (System.currentTimeMillis() - startedAt) / 1000;
-        String pass = together || current == null ? "" : " " + (runs.indexOf(current) + 1) + "/2";
+        String pass = together || index >= passes ? "" : " " + (index + 1) + "/" + passes;
         return "Searching" + pass + ": " + phase + ", " + seconds / 60 + ":" + String.format(Locale.ROOT, "%02d", seconds % 60)
             + (hits.isEmpty() ? "" : ", " + hits.size() + " found");
     }
