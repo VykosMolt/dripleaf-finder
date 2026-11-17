@@ -12,6 +12,11 @@ public final class DripleafClient implements ClientModInitializer {
         return finder;
     }
 
+    static boolean autismAddon() {
+        return FabricLoader.getInstance().getEntrypointContainers("autism", Object.class).stream()
+            .anyMatch(entry -> entry.getProvider().getMetadata().getId().equals("dripleaf-finder"));
+    }
+
     @Override
     public void onInitializeClient() {
         Finder finder = finder();

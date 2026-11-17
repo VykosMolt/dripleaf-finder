@@ -14,6 +14,14 @@ final class Ui {
         ClientTickEvents.END_CLIENT_TICK.register(mc -> {
             while (toggle.consumeClick()) finder.toggle();
         });
+        if (!DripleafClient.autismAddon()) {
+            KeyMapping menu = KeyMappingHelper.registerKeyMapping(
+                new KeyMapping("key.dripleaffinder.menu", InputConstants.KEY_RSHIFT, KeyMapping.Category.MISC));
+            MenuModel model = new FinderMenu(finder);
+            ClientTickEvents.END_CLIENT_TICK.register(mc -> {
+                while (menu.consumeClick()) mc.gui.setScreen(new MenuScreen(model));
+            });
+        }
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, context) ->
             dispatcher.register(Commands.<FabricClientCommandSource>tree(finder)));
     }
