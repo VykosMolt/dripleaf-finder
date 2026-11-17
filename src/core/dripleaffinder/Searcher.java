@@ -24,6 +24,7 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.biome.Climate;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 
@@ -98,10 +99,13 @@ public final class Searcher implements ModInitializer {
         IntStream.rangeClosed(minX, maxX).parallel().forEach(cx -> {
             for (int cz = minZ; cz <= maxZ; cz++) {
                 sample:
-                for (int qx = 0; qx < 4; qx++) for (int qz = 0; qz < 4; qz++) for (int qy = -16; qy <= 31; qy++) {
-                    if (SearchCompat.lushNoise(level, (cx << 2) + qx, qy, (cz << 2) + qz)) {
-                        lush.add(key(cx, cz));
-                        break sample;
+                for (int qx = 0; qx < 4; qx++) for (int qz = 0; qz < 4; qz++) {
+                    Climate.TargetPoint column = SearchCompat.column(level, (cx << 2) + qx, (cz << 2) + qz);
+                    for (int qy = -16; qy <= 31; qy++) {
+                        if (SearchCompat.lushNoise(level, column, (cx << 2) + qx, qy, (cz << 2) + qz)) {
+                            lush.add(key(cx, cz));
+                            break sample;
+                        }
                     }
                 }
             }
