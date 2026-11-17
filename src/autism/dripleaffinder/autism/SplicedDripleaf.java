@@ -1,6 +1,5 @@
 package dripleaffinder.autism;
 
-import autismclient.api.event.AddonEvents;
 import autismclient.api.module.ActionSetting;
 import autismclient.api.module.BoolSetting;
 import autismclient.api.module.ChoiceSetting;
@@ -11,7 +10,6 @@ import dripleaffinder.MenuModel;
 
 final class SplicedDripleaf extends SimpleModule {
     private final MenuModel model;
-    private final ActionSetting search;
 
     SplicedDripleaf(MenuModel model) {
         super("spliced", "Spliced Dripleaf Finder", "Finds small dripleaf top halves that have no bottom half.");
@@ -28,9 +26,10 @@ final class SplicedDripleaf extends SimpleModule {
             .unit("blocks"));
         add(new IntSetting("memory", "Search Memory", Math.min(4, model.maxMemoryGb()), 1, model.maxMemoryGb(), 1).unit("GB"));
         add(new StringSetting("status", "Status", "").readonlySummary());
-        search = add(new ActionSetting("search", "Seed Search", this::searchOrStop).buttonLabel("Search").requiresWorld());
+        add(new ActionSetting("search", "Seed Search", model::search).buttonLabel("Search").requiresWorld()
+            .visibleWhen(() -> !model.searching()));
+        add(new ActionSetting("stop", "Seed Search", model::stop).buttonLabel("Stop").visibleWhen(model::searching));
         model.onEnabledChanged(this::setEnabledSilently);
-        AddonEvents.onTick(mc -> search.buttonLabel(model.searching() ? "Stop" : "Search"));
     }
 
     @Override
@@ -41,11 +40,6 @@ final class SplicedDripleaf extends SimpleModule {
     @Override
     public void onDisable() {
         model.setEnabled(false);
-    }
-
-    private void searchOrStop() {
-        if (model.searching()) model.stop();
-        else model.search();
     }
 
     @Override
