@@ -17,6 +17,8 @@ import java.util.stream.Stream;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.Level;
 
 public final class SeedSearch {
     public static final int DEFAULT_RADIUS = 1000, MAX_RADIUS = 4000, STATUS_LENGTH = 40;
@@ -105,7 +107,7 @@ public final class SeedSearch {
         }
         boolean both = servers == 2;
         this.key = key;
-        this.center = mc.player.blockPosition();
+        this.center = overworld(mc.player.blockPosition(), mc.level.dimension());
         this.radius = radius;
         this.together = both;
         this.startedAt = System.currentTimeMillis();
@@ -158,6 +160,11 @@ public final class SeedSearch {
         if (chat) Finder.message("Seed search started for " + key + ": " + (finder.seeds.typedSeed() != null ? "the typed seed" : "SeedcrackerX's seed")
             + ", " + target + ", radius " + radius + " around "
             + center.getX() + " " + center.getZ() + (both ? "." : ", one chunk order after the other (Search Memory allows one at a time)."));
+    }
+
+    static BlockPos overworld(BlockPos at, ResourceKey<Level> dimension) {
+        if (dimension == Level.NETHER) return new BlockPos(at.getX() * 8, at.getY(), at.getZ() * 8);
+        return dimension == Level.END ? new BlockPos(0, at.getY(), 0) : at;
     }
 
     private void refuse(String key, String status, String detail, boolean chat) {
@@ -337,7 +344,7 @@ public final class SeedSearch {
                 String guidance = Guidance.text(pos.getX(), pos.getZ(), f[4], first, then, finder.folia);
                 finder.addPrediction(new Prediction(pos, "top", f[4], null, true, first, then));
                 finder.announce("Spliced small dripleaf top half from the seed at " + pos.getX() + " " + pos.getY() + " " + pos.getZ()
-                    + ", " + (int) Math.sqrt(pos.distSqr(mc.player.blockPosition())) + " blocks away: " + guidance);
+                    + ", " + (int) Finder.flatDistance(pos, overworld(mc.player.blockPosition(), mc.level.dimension())) + " blocks away: " + guidance);
             }
             case "done" -> {
                 run.finished = true;

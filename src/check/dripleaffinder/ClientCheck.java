@@ -139,11 +139,15 @@ public final class ClientCheck {
         expect("spawn chunks kept", SeedSearch.mergePredictions(java.util.List.of("70\t40\t-64\ttop\tair\tasc\tyes\t1", "-65\t40\t0\ttop\tair\tasc\tyes\t1",
                 "80\t40\t0\ttop\tair\tasc\tyes\t1"), java.util.Map.of(), new BlockPos(0, 64, 0), 1000, new int[] {8, 8, 64}, true)
             .stream().map(line -> line.split("\t")[0]).toList(), java.util.List.of("70"));
+        BlockPos at = new BlockPos(-100, 70, 25);
+        expect("overworld centre", java.util.List.of(SeedSearch.overworld(at, net.minecraft.world.level.Level.OVERWORLD),
+                SeedSearch.overworld(at, net.minecraft.world.level.Level.NETHER), SeedSearch.overworld(at, net.minecraft.world.level.Level.END)),
+            java.util.List.of(at, new BlockPos(-800, 70, 200), new BlockPos(0, 70, 0)));
         commandLine();
 
         System.out.println("CLIENT CHECK PASSED: 2 azalea trees, trunkless leaves dropped; data rows, box edges, memory, data keys, host names,"
             + " server versions, server types, folia guidance, splice guidance, search memory, brief status, candidates row, set-aside names, set aside,"
-            + " merged predictions, spawn chunks kept, search command line");
+            + " merged predictions, spawn chunks kept, overworld centre, search command line");
     }
 
     static void setAside(String name) throws java.io.IOException {
