@@ -137,12 +137,8 @@ public final class SeedSearch {
                     SearchRun previous = null;
                     for (String order : SearchRun.ORDERS) {
                         if (mine.generation != generation) return;
+                        if (previous != null && previous.process.exitValue() == SearchRun.OUT_OF_MEMORY_EXIT) return;
                         mine.unstarted = order;
-                        if (previous != null && previous.process.exitValue() == SearchRun.OUT_OF_MEMORY_EXIT) {
-                            mine.error = "the " + previous.order + " search ran out of memory, and the " + order + " search would get the same heap. "
-                                + "Raise Search Memory or lower Search Radius.";
-                            return;
-                        }
                         SearchRun run = SearchRun.start(gameDir, seed, order, at, r, order.equals("asc"), launch);
                         mine.launched.add(run);
                         mine.unstarted = null;
@@ -302,7 +298,8 @@ public final class SeedSearch {
                     run.finished = true;
                     boolean memory = run.process.exitValue() == SearchRun.OUT_OF_MEMORY_EXIT;
                     fail(run.order, memory ? "out of memory" : run.order + " server stopped", "The " + run.order + " search server "
-                        + (memory ? "ran out of memory" : "stopped without a result") + "; its log: " + run.dir.resolve("server.log"));
+                        + (memory ? "ran out of memory; raise Search Memory or lower Search Radius" : "stopped without a result") + ". Its log: "
+                        + run.dir.resolve("server.log"));
                 }
             }
         }
