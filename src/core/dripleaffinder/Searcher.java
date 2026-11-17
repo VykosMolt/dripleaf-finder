@@ -29,6 +29,7 @@ import net.minecraft.world.level.chunk.ChunkAccess;
 
 public final class Searcher implements ModInitializer {
     static final int BATCH = 256, SPAWN_SCAN = 12;
+    static final Comparator<Long> ORDER = Comparator.<Long>comparingInt(Searcher::x).thenComparingInt(Searcher::z);
 
     @Override
     public void onInitialize() {
@@ -120,19 +121,22 @@ public final class Searcher implements ModInitializer {
                     .mapToObj(i -> floor(level, ready.get(i), x(batch.get(i)), z(batch.get(i)))).toList();
                 for (int i = 0; i < batch.size(); i++) {
                     long k = batch.get(i);
-                    long[] tile = tiles.computeIfAbsent(key(x(k) >> 3, z(k) >> 3), t -> new long[4]);
-                    tile[0] += floors.get(i)[0];
-                    if (floors.get(i)[0] > tile[1]) {
-                        tile[1] = floors.get(i)[0];
-                        tile[2] = k;
-                        tile[3] = floors.get(i)[1];
-                    }
+                    addFloor(tiles.computeIfAbsent(key(x(k) >> 3, z(k) >> 3), t -> new long[4]), k, floors.get(i));
                 }
             }).join();
         }
         for (long[] tile : tiles.values()) {
             if (tile[0] == 0) continue;
             out.line("lush", (x(tile[2]) * 16 + 8) + "\t" + Math.floorDiv(tile[3], tile[1]) + "\t" + (z(tile[2]) * 16 + 8) + "\t" + tile[0]);
+        }
+    }
+
+    static void addFloor(long[] tile, long chunk, long[] floor) {
+        tile[0] += floor[0];
+        if (floor[0] > tile[1] || floor[0] > 0 && floor[0] == tile[1] && ORDER.compare(chunk, tile[2]) < 0) {
+            tile[1] = floor[0];
+            tile[2] = chunk;
+            tile[3] = floor[1];
         }
     }
 
@@ -173,8 +177,7 @@ public final class Searcher implements ModInitializer {
         List<Long> decorate = new ArrayList<>(dilate(lush, 2)), report = new ArrayList<>(dilate(lush, 1));
         decorate.removeAll(startup);
         report.removeAll(dilate(startup, 1));
-        Comparator<Long> order = Comparator.<Long>comparingInt(Searcher::x).thenComparingInt(Searcher::z);
-        decorate.sort(descending ? order.reversed() : order);
+        decorate.sort(descending ? ORDER.reversed() : ORDER);
         Map<Long, Long> placedBy = new HashMap<>(), removedBy = new HashMap<>();
         out.line("status", "decorated 0 of " + decorate.size() + " chunks");
         for (int from = 0; from < decorate.size(); from += BATCH) {
@@ -197,7 +200,7 @@ public final class Searcher implements ModInitializer {
         List<BlockPos> hits = new ArrayList<>();
         List<BlockState> states = new ArrayList<>();
         long[] plants = new long[1];
-        List<Long> scan = report.stream().sorted(order).toList();
+        List<Long> scan = report.stream().sorted(ORDER).toList();
         Map<Long, List<BlockPos>> hitsIn = new HashMap<>();
         Map<Long, List<BlockState>> statesIn = new HashMap<>();
         for (int from = 0; from < scan.size(); from += BATCH) {

@@ -71,8 +71,16 @@ public final class SelfCheck {
                 Splice.settle(chunk, new BlockPos(62, 16, -18), 200, SelfCheck::lush), Splice.settle(chunk, new BlockPos(49, 25, -30), 200, SelfCheck::lush)),
             java.util.Arrays.asList(null, true, false, true, false));
 
+        long[] forward = new long[4], backward = new long[4];
+        long[] chunks = {Searcher.key(-3, 5), Searcher.key(-3, 4), Searcher.key(2, 0)};
+        long[][] floors = {{7, 70}, {7, 140}, {3, 9}};
+        for (int i = 0; i < 3; i++) Searcher.addFloor(forward, chunks[i], floors[i]);
+        for (int i = 2; i >= 0; i--) Searcher.addFloor(backward, chunks[i], floors[i]);
+        expect("floor tie", java.util.List.of(java.util.Arrays.toString(forward), java.util.Arrays.toString(backward)),
+            java.util.Collections.nCopies(2, java.util.Arrays.toString(new long[] {17, 7, Searcher.key(-3, 4), 140})));
+
         System.out.println("SELF-CHECK PASSED: masked server " + masked.size() + " / plain server " + plain.size()
             + " spliced top halves; whole plants, lone bottoms, big dripleaf, stone/deepslate/ore below, open sky, outside lush caves ignored;"
-            + " settle");
+            + " settle; floor tie");
     }
 }
