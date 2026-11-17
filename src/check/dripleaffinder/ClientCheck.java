@@ -104,6 +104,12 @@ public final class ClientCheck {
                 Settings.memoryGb(0, 8 * gib), Settings.memoryGb(5, 16 * gib), SeedSearch.serversThatFit(Settings.memoryGb(null, 15 * gib) * 1024L,
                     MenuModel.DEFAULT_RADIUS)),
             java.util.Arrays.asList(16, 7, 4, 2, 1, 6, 1, 5, 2));
+        expect("brief status", java.util.List.of(
+                SeedSearch.brief("Failed: java.lang.IllegalStateException: Not enough chunks loaded", 40),
+                SeedSearch.brief("Could not start: java.net.UnknownHostException: piston-meta.mojang.com", 40),
+                SeedSearch.brief("Failed: a.b.Outer$Inner", 40), SeedSearch.brief("Failed: out of memory", 40)),
+            java.util.List.of("Failed: IllegalStateException: Not enou…", "Could not start: UnknownHostException: …",
+                "Failed: Outer$Inner", "Failed: out of memory"));
 
         System.out.println("CLIENT CHECK PASSED: 2 azalea trees, trunkless leaves dropped; data rows, box edges, memory, data keys, host names,"
             + " server versions, server types, folia guidance, splice guidance, search memory");

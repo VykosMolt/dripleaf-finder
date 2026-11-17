@@ -19,7 +19,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 
 public final class SeedSearch {
-    public static final int DEFAULT_RADIUS = 1000, MAX_RADIUS = 4000;
+    public static final int DEFAULT_RADIUS = 1000, MAX_RADIUS = 4000, STATUS_LENGTH = 40;
 
     private final Finder finder;
     private final List<SearchRun> runs = new CopyOnWriteArrayList<>(), killed = new CopyOnWriteArrayList<>();
@@ -161,7 +161,7 @@ public final class SeedSearch {
     }
 
     private void refuse(String status, String detail, boolean chat) {
-        lastResult = status;
+        lastResult = brief(status, STATUS_LENGTH);
         if (chat) Finder.message(detail);
     }
 
@@ -179,6 +179,11 @@ public final class SeedSearch {
         String pass = together || current == null ? "" : " " + (runs.indexOf(current) + 1) + "/2";
         return "Searching" + pass + ": " + phase + ", " + seconds / 60 + ":" + String.format(Locale.ROOT, "%02d", seconds % 60)
             + (hits.isEmpty() ? "" : ", " + hits.size() + " found");
+    }
+
+    static String brief(String text, int max) {
+        text = text.replaceFirst("(?<=^|: )(?:[a-z_$][\\w$]*\\.)+(?=[A-Z][\\w$]*(?::|$))", "");
+        return text.length() <= max ? text : text.substring(0, max - 1) + "…";
     }
 
     static int serversThatFit(long availableMb, int radius) {
@@ -249,7 +254,7 @@ public final class SeedSearch {
             if (complete) {
                 setup = null;
                 if (pending.error != null && runs.isEmpty()) {
-                    refuse("Could not start: " + pending.error, "Seed search could not start: " + pending.error, fromCommand);
+                    refuse("Could not start: " + pending.error, "Seed search could not start: " + pending.error, true);
                     startPending(mc);
                     return;
                 }
@@ -339,7 +344,7 @@ public final class SeedSearch {
         failures.forEach(Finder::message);
         if (saveError != null) Finder.message(saveError);
         String halves = hits.size() + (hits.size() == 1 ? " half, " : " halves, ");
-        if (!done) lastResult = "Failed: " + failed.values().iterator().next();
+        if (!done) lastResult = brief("Failed: " + failed.values().iterator().next(), STATUS_LENGTH);
         else if (saveError != null) lastResult = "Could not save results";
         else if (!complete) lastResult = "Done, " + String.join(", ", failed.keySet()) + " failed: " + halves + lush.size() + " lush";
         else lastResult = "Done: " + halves + lush.size() + " lush tiles, " + seconds + " s";
