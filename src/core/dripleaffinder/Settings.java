@@ -25,8 +25,8 @@ public final class Settings {
     }
 
     static int memoryGb(Integer stored, long totalBytes) {
-        int max = maxMemoryGb(totalBytes);
-        return stored == null ? Math.min(max, Math.max(4, (int) (totalBytes >> 31))) : Math.max(1, Math.min(max, stored));
+        int max = maxMemoryGb(totalBytes), min = Math.min(MenuModel.MIN_MEMORY_GB, max);
+        return stored == null ? Math.max(min, Math.min(max, Math.max(4, (int) (totalBytes >> 31)))) : Math.max(min, Math.min(max, stored));
     }
 
     int memoryGb() {

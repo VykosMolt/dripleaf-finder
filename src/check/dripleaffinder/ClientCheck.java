@@ -126,7 +126,7 @@ public final class ClientCheck {
                 Settings.memoryGb(null, 8 * gib), Settings.memoryGb(null, 4 * gib), Settings.memoryGb(null, 2 * gib), Settings.memoryGb(12, 8 * gib),
                 Settings.memoryGb(0, 8 * gib), Settings.memoryGb(5, 16 * gib), SeedSearch.serversThatFit(Settings.memoryGb(null, 15 * gib) * 1024L,
                     MenuModel.DEFAULT_RADIUS)),
-            java.util.Arrays.asList(16, 7, 4, 2, 1, 6, 1, 5, 2));
+            java.util.Arrays.asList(16, 7, 4, 2, 1, 6, 3, 5, 2));
         expect("brief status", java.util.List.of(
                 SeedSearch.brief("Failed: java.lang.IllegalStateException: Not enough chunks loaded", 40),
                 SeedSearch.brief("Could not start: java.net.UnknownHostException: piston-meta.mojang.com", 40),

@@ -35,8 +35,10 @@ public final class SeedSearch {
     private String leftOut;
     private int[] spawn;
     private static final Object SETUP = new Object();
+    private final Object launchLock = new Object();
     private volatile int generation;
     private volatile Setup setup;
+    private volatile Thread setupThread;
     private final List<BlockPos> missed = new ArrayList<>();
     private String key, pendingKey, targetVersion;
     private Path folder;
@@ -63,11 +65,42 @@ public final class SeedSearch {
             Setup pending = setup;
             if (pending != null) pending.launched.forEach(SearchRun::kill);
         }));
+        // A previous game session can leave a search server behind when it was force-closed.
+        Thread cleanup = new Thread(SeedSearch::killLeftovers, "Dripleaf search cleanup");
+        cleanup.setDaemon(true);
+        cleanup.start();
+    }
+
+    private static boolean isSearchServer(ProcessHandle handle) {
+        if (handle.info().commandLine().map(line -> line.contains("-Ddripleaffinder.search=")).orElse(false)) return true;
+        return handle.info().arguments().map(args -> {
+            for (String arg : args) if (arg.startsWith("-Ddripleaffinder.search=")) return true;
+            return false;
+        }).orElse(false);
+    }
+
+    private static void killLeftovers() {
+        try {
+            // Search servers left behind can no longer be reached through the game's process.
+            ProcessHandle.allProcesses().filter(handle -> {
+                if (!isSearchServer(handle)) return false;
+                return handle.parent().map(parent -> parent.info().commandLine().map(line -> !line.contains("KnotClient"))
+                    .orElse(false)).orElse(true);
+            }).forEach(ProcessHandle::destroyForcibly);
+        } catch (RuntimeException ignored) {
+        }
+    }
+
+    private static void killDescendants() {
+        try {
+            ProcessHandle.current().descendants().filter(SeedSearch::isSearchServer).forEach(ProcessHandle::destroyForcibly);
+        } catch (RuntimeException ignored) {
+        }
     }
 
     public void start(Minecraft mc, int radius, boolean chat) {
         if (running()) {
-            if (chat) Finder.message("A seed search is already running; press Stop first.");
+            Finder.message("A seed search is already running; press Stop first.");
             return;
         }
         String key = Finder.connectionKey(mc), seed = finder.seeds.seed();
@@ -102,14 +135,26 @@ public final class SeedSearch {
             return;
         }
         radius = Math.max(MenuModel.MIN_RADIUS, Math.min(MAX_RADIUS, radius));
-        long available = availableMb();
-        int servers = serversThatFit(available, radius);
+        long budget = budgetMb(), free = freeMb();
+        int servers = serversThatFit(budget, free, radius);
         if (servers == 0) {
-            int fits = 0;
-            for (int r = MenuModel.MIN_RADIUS; r <= MAX_RADIUS; r += MenuModel.RADIUS_STEP) if (serversThatFit(available, r) > 0) fits = r;
-            refuse(key, fits > 0 ? "Not enough memory: radius ≤ " + fits : "Not enough memory: needs " + (SearchRun.serverMb(MenuModel.MIN_RADIUS) + 1024) + " MB",
-                "Not enough memory for radius " + radius + ": a search server needs " + SearchRun.serverMb(radius) + " MB plus 1024 MB to spare, "
-                    + "and Search Memory and free memory allow " + available + " MB. "
+            int byBudget = 0, byFree = 0;
+            for (int r = MenuModel.MIN_RADIUS; r <= MAX_RADIUS; r += MenuModel.RADIUS_STEP) {
+                if (serversThatFit(budget, r) > 0) byBudget = r;
+                if (serversThatFit(Long.MAX_VALUE / 4, free, r) > 0) byFree = r;
+            }
+            int fits = Math.min(byBudget, byFree);
+            boolean budgetShort = serversThatFit(budget, radius) == 0;
+            boolean freeShort = serversThatFit(Long.MAX_VALUE / 4, free, radius) == 0;
+            String limit = budgetShort && freeShort
+                ? "Search Memory is " + finder.settings.memoryGb() + " GB and only " + free + " MB of system memory is free"
+                : budgetShort
+                    ? "Search Memory is " + finder.settings.memoryGb() + " GB, but this radius needs "
+                        + ((SearchRun.serverMb(radius) + 1024 + 1023) / 1024) + " GB"
+                    : "only " + free + " MB of system memory is free, but this radius needs about " + (SearchRun.heapMb(radius) + 512) + " MB";
+            refuse(key, fits > 0 ? "Not enough memory: radius ≤ " + fits
+                : budgetShort ? "Not enough memory: raise Search Memory" : "Not enough memory: close other programs",
+                "Not enough memory for radius " + radius + ": " + limit + ". "
                     + (fits > 0 ? "A Search Radius of " + fits + " fits." : "Close other programs or raise Search Memory."), chat);
             return;
         }
@@ -150,13 +195,16 @@ public final class SeedSearch {
                     mine.phase = "starting";
                     SearchRun previous = null;
                     for (String order : SearchRun.ORDERS) {
-                        if (mine.generation != generation) return;
-                        if (previous != null && previous.process.exitValue() == SearchRun.OUT_OF_MEMORY_EXIT) return;
-                        mine.unstarted = order;
-                        SearchRun run = SearchRun.start(gameDir, seed, order, at, r, order.equals("asc"), launch);
-                        mine.launched.add(run);
-                        mine.unstarted = null;
-                        if (mine.generation != generation) kill(List.of(run));
+                        SearchRun run;
+                        synchronized (launchLock) {
+                            if (mine.generation != generation) return;
+                            if (previous != null && previous.process.exitValue() == SearchRun.OUT_OF_MEMORY_EXIT) return;
+                            mine.unstarted = order;
+                            run = SearchRun.start(gameDir, seed, order, at, r, order.equals("asc"), launch);
+                            mine.launched.add(run);
+                            mine.unstarted = null;
+                            if (mine.generation != generation) kill(List.of(run));
+                        }
                         while (!both && mine.generation == generation && run.process.isAlive()) Thread.sleep(500);
                         previous = both ? null : run;
                     }
@@ -168,6 +216,7 @@ public final class SeedSearch {
             }
         }, "Dripleaf seed search setup");
         thread.setDaemon(true);
+        setupThread = thread;
         thread.start();
         if (chat) Finder.message("Seed search started for " + key + ": " + (finder.seeds.typedSeed() != null ? "the typed seed" : "SeedcrackerX's seed")
             + ", " + target + ", radius " + radius + " around "
@@ -243,7 +292,18 @@ public final class SeedSearch {
         return availableMb >= 2 * server + 1024 ? 2 : availableMb >= server + 1024 ? 1 : 0;
     }
 
-    private long availableMb() {
+    static int serversThatFit(long budgetMb, long freeMb, int radius) {
+        long server = SearchRun.serverMb(radius), process = SearchRun.heapMb(radius) + 512L;
+        int byBudget = budgetMb >= 2 * server + 1024 ? 2 : budgetMb >= server + 1024 ? 1 : 0;
+        int byFree = freeMb >= 2 * process + 512 ? 2 : freeMb >= process ? 1 : 0;
+        return Math.min(byBudget, byFree);
+    }
+
+    private long budgetMb() {
+        return finder.settings.memoryGb() * 1024L;
+    }
+
+    private static long freeMb() {
         long free = ((OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean()).getFreeMemorySize() >> 20;
         if (!Files.exists(Path.of("/proc/meminfo")) && System.getProperty("os.name", "").startsWith("Mac")) free = Settings.TOTAL_MEMORY >> 21;
         try {
@@ -252,7 +312,7 @@ public final class SeedSearch {
             }
         } catch (IOException | NumberFormatException e) {
         }
-        return Math.min(finder.settings.memoryGb() * 1024L, free);
+        return free;
     }
 
     void startOrQueue(Minecraft mc, String key) {
@@ -276,25 +336,46 @@ public final class SeedSearch {
         return running() && key.equals(this.key);
     }
 
-    public void stop(boolean fromCommand) {
+    public void stop() {
         if (!running()) {
-            if (fromCommand) Finder.message("No seed search is running.");
+            Finder.message("No seed search is running.");
             return;
         }
-        generation++;
-        Setup pending = setup;
-        setup = null;
-        if (pending != null) for (SearchRun run : pending.launched) if (!runs.contains(run)) runs.add(run);
+        Setup pending;
+        List<SearchRun> stopping;
+        synchronized (launchLock) {
+            generation++;
+            pending = setup;
+            setup = null;
+            if (pending != null) for (SearchRun run : pending.launched) if (!runs.contains(run)) runs.add(run);
+            stopping = new ArrayList<>(runs);
+            runs.clear();
+        }
+        Thread setup = setupThread;
+        setupThread = null;
+        if (setup != null) setup.interrupt();
+        // Kill first: a result line that cannot be parsed must never keep the search alive.
+        kill(stopping);
+        killDescendants();
+        Thread leftovers = new Thread(SeedSearch::killLeftovers, "Dripleaf search cleanup");
+        leftovers.setDaemon(true);
+        leftovers.start();
         Minecraft mc = Minecraft.getInstance();
-        for (SearchRun run : runs) for (String line : run.newLines()) handle(mc, run, line);
-        kill(runs);
-        runs.clear();
+        for (SearchRun run : stopping) {
+            for (String line : run.newLines()) {
+                try {
+                    handle(mc, run, line);
+                } catch (RuntimeException e) {
+                    System.err.println("Dripleaf Finder: could not read a search result line: " + e);
+                }
+            }
+        }
         String dropped = pendingKey;
         pendingKey = null;
         String saveError = hits.isEmpty() && lush.isEmpty() ? null : save(false);
         if (saveError != null) Finder.message(saveError);
         result(key, "Stopped", folder);
-        if (fromCommand) Finder.message("Seed search stopped." + (hits.isEmpty() || saveError != null ? ""
+        Finder.message("Seed search stopped." + (hits.isEmpty() || saveError != null ? ""
             : " The " + hits.size() + " spliced top halves found so far are saved."));
         if (dropped != null) {
             result(dropped, "Queued search dropped: search stopped", null);
@@ -304,7 +385,7 @@ public final class SeedSearch {
 
     void stopFor(String key, String status) {
         if (!searching(key)) return;
-        stop(false);
+        stop();
         result(key, status, folder);
     }
 
@@ -313,6 +394,15 @@ public final class SeedSearch {
             run.kill();
             killed.add(run);
         }
+        if (stopping.isEmpty()) return;
+        Thread reaper = new Thread(() -> {
+            for (SearchRun run : stopping) {
+                if (run.reap(5)) killed.remove(run);
+                else run.kill();
+            }
+        }, "Dripleaf search reaper");
+        reaper.setDaemon(true);
+        reaper.start();
     }
 
     void tick(Minecraft mc) {
@@ -422,7 +512,10 @@ public final class SeedSearch {
         if (!failed.isEmpty()) gaps.add(String.join(", ", failed.keySet()) + " failed");
         if (unchecked > 0) gaps.add(unchecked + " unchecked");
         boolean complete = gaps.isEmpty() && !runs.isEmpty();
-        for (SearchRun run : runs) run.deleteWorld();
+        for (SearchRun run : runs) {
+            run.deleteWorld();
+            if (run.process.isAlive()) run.kill();
+        }
         runs.clear();
         String saveError = save(complete);
         long both = hits.values().stream().filter(h -> h[1].equals("both")).count(), seconds = (System.currentTimeMillis() - startedAt) / 1000;

@@ -8,6 +8,8 @@ public interface MenuModel {
     String AUTO = "Auto";
     int MIN_RADIUS = 64, MAX_RADIUS = SeedSearch.MAX_RADIUS, RADIUS_STEP = 64;
     int DEFAULT_RADIUS = Math.round(SeedSearch.DEFAULT_RADIUS / (float) RADIUS_STEP) * RADIUS_STEP;
+    // A minimum-radius search needs about 2.9 GB once the 1 GB spare is included.
+    int MIN_MEMORY_GB = 3;
 
     void follow(BooleanSupplier enabled, Consumer<Boolean> turn);
 
