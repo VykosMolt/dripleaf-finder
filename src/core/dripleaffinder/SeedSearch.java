@@ -122,8 +122,8 @@ public final class SeedSearch {
         thread.setDaemon(true);
         thread.start();
         Finder.message("Seed search around " + center.getX() + " " + center.getZ() + ", radius " + this.radius + ", " + target
-            + " world generation (" + gen[1] + "): starting two background servers (one per chunk order). The first search for a"
-            + " version downloads its server from Mojang.");
+            + " world generation (" + gen[1] + "): starting two background servers (one per chunk order)."
+            + (target.equals(Versions.client()) ? "" : " The first search for " + target + " downloads its server from Mojang."));
     }
 
     void startOrQueue(Minecraft mc, String key) {

@@ -26,27 +26,24 @@ final class Searchers {
     static final String MANIFEST = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
     static final Pattern LOADER_JARS = Pattern.compile(
         "(fabric-loader|sponge-mixin|asm|asm-analysis|asm-commons|asm-tree|asm-util|mixinextras-fabric|mixinextras-common)-.*\\.jar");
-    static final Pattern INTERMEDIARY = Pattern.compile("intermediary-.*\\.jar");
 
-    record Launch(Path serverJar, List<Path> mods, List<String> classpath) {
+    record Launch(Path gameJar, List<Path> mods, List<String> classpath) {
     }
 
+    @SuppressWarnings("unchecked")
     static Launch prepare(Path cache, String target) throws IOException {
+        if (target.equals(Versions.client())) {
+            Path game = ((List<Path>) FabricLoader.getInstance().getObjectShare().get("fabric-loader:inputGameJars")).get(0);
+            Path mod = FabricLoader.getInstance().getModContainer("dripleaf-finder").orElseThrow().getOrigin().getPaths().get(0);
+            return new Launch(game, List.of(mod, apiBase(cache)), List.of(System.getProperty("java.class.path").split(File.pathSeparator)));
+        }
         Path serverJar = serverJar(cache.resolve(target), target);
-        boolean own = target.equals(Versions.client());
         List<String> classpath = new ArrayList<>();
         for (String entry : System.getProperty("java.class.path").split(File.pathSeparator)) {
-            String name = Path.of(entry).getFileName().toString();
-            if (LOADER_JARS.matcher(name).matches() || own && INTERMEDIARY.matcher(name).matches()) classpath.add(entry);
+            if (LOADER_JARS.matcher(Path.of(entry).getFileName().toString()).matches()) classpath.add(entry);
         }
-        Path modJar;
-        if (own) {
-            modJar = FabricLoader.getInstance().getModContainer("dripleaf-finder").orElseThrow().getOrigin().getPaths().get(0);
-        } else {
-            modJar = bundled(cache.resolve("searchers"), target);
-            if (target.startsWith("1.")) classpath.add(intermediary(cache.resolve(target), target).toString());
-        }
-        return new Launch(serverJar, List.of(modJar, apiBase(cache)), classpath);
+        if (target.startsWith("1.")) classpath.add(intermediary(cache.resolve(target), target).toString());
+        return new Launch(serverJar, List.of(bundled(cache.resolve("searchers"), target), apiBase(cache)), classpath);
     }
 
     static Path apiBase(Path cache) throws IOException {

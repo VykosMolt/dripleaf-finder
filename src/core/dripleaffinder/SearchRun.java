@@ -64,7 +64,7 @@ final class SearchRun {
         }
         Files.writeString(dir.resolve("results.tsv"), "");
         List<String> command = List.of(ProcessHandle.current().info().command().orElse("java"), "-Xmx" + (1536 + radius) + "M",
-            "-Dfabric.gameJarPath=" + launch.serverJar(), "-Dfabric.addMods=" + String.join(File.pathSeparator, launch.mods().stream().map(Path::toString).toList()),
+            "-Dfabric.gameJarPath=" + launch.gameJar(), "-Dfabric.addMods=" + String.join(File.pathSeparator, launch.mods().stream().map(Path::toString).toList()),
             "-Ddripleaffinder.search=" + dir.resolve("search.properties"), "-cp", String.join(File.pathSeparator, launch.classpath()),
             "net.fabricmc.loader.impl.launch.knot.KnotServer", "nogui");
         Process process = new ProcessBuilder(command).directory(dir.toFile()).redirectErrorStream(true)
