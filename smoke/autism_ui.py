@@ -357,6 +357,8 @@ def flow_a():
             initial_radius = s.number("Search Radius")
         if initial_memory is None and s.placement("Search Memory") == "visible":
             initial_memory = s.number("Search Memory")
+        if all(label in seen for label in labels):
+            break
         scroll(s, -1)
         last, s = s, shot("a-window-scroll")
         if last.image.tobytes() == s.image.tobytes():
@@ -474,6 +476,8 @@ def flow_i():
         click(s.label("Disabled"))
     s = view("i-enabled", rows=("Candidates",))
     enabled = s.value("Candidates")
+    if "here" not in enabled:
+        raise Abort(f"AUTISM did not enable the test identity: Candidates={enabled!r}")
     click(s.label("Enabled"))
     s = view("i-disabled", rows=("Candidates",))
     disabled = s.value("Candidates")
