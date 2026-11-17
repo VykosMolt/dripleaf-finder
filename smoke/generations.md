@@ -1,5 +1,7 @@
 Generation support in 1.3.0
 
+The additional review and 1.3.1 detector fix are recorded in [lush-neighborhood.md](lush-neighborhood.md).
+
 One AUTISM 5.3 addon runs on Minecraft 26.2 and carries 32 small search engines for the other exact stable releases from 1.17 through 26.1.2. Each engine uses its own matching Minecraft server jar. Historical API compatibility ranges are not used as generation aliases. Minecraft server jars are downloaded and hash-checked when needed.
 
 Ordinary 1.17 and 1.17.1 worlds do not generate natural lush caves. Selecting those versions explains this without launching a search. Special presets, custom generators, and server-specific placement changes are outside this standard-Overworld support.

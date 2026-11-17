@@ -1,5 +1,7 @@
 # All-generation runtime verification
 
+This records the 1.3.0 matrix. A fresh 1.3.1 matrix is documented in [lush-neighborhood.md](lush-neighborhood.md).
+
 On 17 November 2026, all 33 exact stable releases from 1.17 through 26.2 completed
 an ascending-order search using the single 26.2 AUTISM addon and its bundled
 engines. The command exited 0:
