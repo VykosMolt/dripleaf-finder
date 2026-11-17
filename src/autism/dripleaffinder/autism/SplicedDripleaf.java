@@ -15,9 +15,9 @@ final class SplicedDripleaf extends SimpleModule {
         super("spliced", "Spliced Dripleaf Finder", "Finds spliced small dripleaf.");
         this.model = model;
         add(new BoolSetting("masked", "Masked Server", false));
-        add(new ActionSetting("nearest", "Nearest Predictions", model::listPredictions).buttonLabel("List").requiresWorld());
+        add(new ActionSetting("nearest", "Nearest Predictions", model::listPredictions).buttonLabel("List"));
         add(new BoolSetting("lush", "Lush Cave Pings", true));
-        add(new ActionSetting("nearestLush", "Nearest Lush Caves", model::listLush).buttonLabel("List").requiresWorld());
+        add(new ActionSetting("nearestLush", "Nearest Lush Caves", model::listLush).buttonLabel("List"));
         add(new BoolSetting("azalea", "Azalea Trees", true));
         add(new StringSetting("seed", "World Seed", "").description("Press Enter to save.").requiresWorld().keepOnReset());
         add(new ChoiceSetting("version", "World Version", MenuModel.AUTO, model.versions())
@@ -30,9 +30,8 @@ final class SplicedDripleaf extends SimpleModule {
             .description("For the background search."));
         add(new StringSetting("status", "Status", "").readonlySummary());
         add(new StringSetting("candidates", "Candidates", "").readonlySummary());
-        add(new ActionSetting("search", "Seed Search", model::search).buttonLabel("Search").requiresWorld()
-            .visibleWhen(() -> !model.searching()));
-        add(new ActionSetting("stop", "Seed Search", model::stop).buttonLabel("Stop").visibleWhen(model::searching));
+        add(new ActionSetting("search", "Seed Search", model::search).buttonLabel("Search").visibleWhen(() -> !model.searching()));
+        add(new ActionSetting("stop", "Seed Search", model::stop).buttonLabel("Stop").availableOffline().visibleWhen(model::searching));
         model.follow(this::isEnabled, this::setEnabled);
     }
 
