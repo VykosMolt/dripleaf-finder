@@ -5,6 +5,7 @@ import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.platform.DepthTestFunction;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import dripleaffinder.Finder;
 import java.util.OptionalDouble;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.RenderStateShard;
@@ -13,7 +14,6 @@ import net.minecraft.resources.ResourceLocation;
 import org.joml.Vector3f;
 
 public final class DripleafLines {
-    static final float WIDTH = 1.5f;
     public static final RenderType SEE_THROUGH;
 
     static {
@@ -27,7 +27,7 @@ public final class DripleafLines {
             .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
             .build();
         SEE_THROUGH = RenderType.create("dripleaffinder_lines_see_through", 1536, pipeline, RenderType.CompositeState.builder()
-            .setLineState(new RenderStateShard.LineStateShard(OptionalDouble.of(WIDTH))).createCompositeState(false));
+            .setLineState(new RenderStateShard.LineStateShard(OptionalDouble.of(Finder.LINE_WIDTH))).createCompositeState(false));
     }
 
     public static void vertex(VertexConsumer lines, PoseStack.Pose pose, float x, float y, float z, int color, Vector3f normal) {

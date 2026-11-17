@@ -86,16 +86,22 @@ public final class SelfCheck {
                 Splice.settle(chunk, new BlockPos(62, 16, -18), 200, SelfCheck::lush), Splice.settle(chunk, new BlockPos(49, 25, -30), 200, SelfCheck::lush)),
             java.util.Arrays.asList(null, true, false, true, false));
 
-        java.util.List<String[]> predictions = Data.rows(java.util.List.of("x\ty\tz\thalf\tother\torder\tsurvived\tdist",
-            "1406\t-48\t-148\ttop\tair\tasc\tyes\t1413", "1\t2\t3"), 6, 3);
-        java.util.List<String[]> lushRows = Data.rows(java.util.List.of("70936\t-29\t114920\t22313\t1120", "1\t2\t3\tmany"), 4, 4);
-        expect("data rows", java.util.List.of(predictions.size(), predictions.isEmpty() ? "none" : predictions.get(0)[3],
-            lushRows.size(), lushRows.isEmpty() ? "none" : lushRows.get(0)[3]), java.util.List.of(1, "top", 1, "22313"));
+        java.util.List<Prediction> predictions = java.util.stream.Stream.of("x\ty\tz\thalf\tother\torder\tsurvived\tdist",
+            "1406\t-48\t-148\ttop\tair\tasc\tyes\t1413", "1\t2\t3").map(Prediction::parse).filter(java.util.Objects::nonNull).toList();
+        java.util.List<int[]> lushRows = java.util.stream.Stream.of("70936\t-29\t114920\t22313\t1120", "1\t2\t3\tmany")
+            .map(line -> Data.ints(line, 4)).filter(java.util.Objects::nonNull).toList();
+        expect("data rows", java.util.List.of(predictions.size(), predictions.isEmpty() ? "none" : predictions.get(0).half(),
+            lushRows.size(), lushRows.isEmpty() ? "none" : lushRows.get(0)[3]), java.util.List.of(1, "top", 1, 22313));
 
         Memory memory = new Memory();
         BlockPos p = new BlockPos(1, 2, 3);
-        expect("memory", java.util.List.of(memory.enter("a"), memory.announced.add(p), memory.enter("a"), memory.announced.add(p),
-            memory.enter("b"), memory.announced.add(p)), java.util.List.of(true, true, false, false, true, true));
+        memory.enter("a");
+        boolean first = memory.announced.add(p);
+        memory.enter("a");
+        boolean again = memory.announced.add(p);
+        memory.enter("b");
+        boolean other = memory.announced.add(p);
+        expect("memory", java.util.List.of(first, again, other, memory.key()), java.util.List.of(true, false, true, "b"));
 
         expect("data keys", java.util.List.of(DataKey.of("Play.Example.org:25565", null),
                 DataKey.of(null, "New World (2)"), DataKey.of(null, null), DataKey.of(null, ".."),

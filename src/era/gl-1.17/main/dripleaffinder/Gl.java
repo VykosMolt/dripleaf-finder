@@ -4,7 +4,6 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.renderer.GameRenderer;
 
 final class Gl {
-    static final float WIDTH = 1.5f;
     private static float fogStart;
 
     static void setup() {
@@ -13,7 +12,7 @@ final class Gl {
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
         RenderSystem.disableCull();
-        RenderSystem.lineWidth(WIDTH);
+        RenderSystem.lineWidth(Finder.LINE_WIDTH);
         fogStart = RenderSystem.getShaderFogStart();
         RenderSystem.setShaderFogStart(Float.MAX_VALUE);
     }

@@ -13,7 +13,7 @@ final class Render {
     static void register(Finder finder) {
         WorldRenderEvents.LAST.register(context -> {
             Vec3 camera = context.camera().getPosition();
-            PoseStack.Pose pose = View.pose(context);
+            PoseStack.Pose pose = View.CAMERA_ROTATION_IN_MODEL_VIEW ? new PoseStack().last() : context.matrixStack().last();
             Tesselator tesselator = Tesselator.getInstance();
             BufferBuilder buffer = tesselator.getBuilder();
             boolean[] begun = {false};

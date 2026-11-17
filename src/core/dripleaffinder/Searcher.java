@@ -27,7 +27,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 
 public final class Searcher implements ModInitializer {
-    static final int BATCH = 256, SETTLE_TICKS = 200;
+    static final int BATCH = 256;
 
     @Override
     public void onInitialize() {
@@ -194,7 +194,7 @@ public final class Searcher implements ModInitializer {
             hits.stream().allMatch(at -> level.getChunkSource().getChunkNow(at.getX() >> 4, at.getZ() >> 4) != null)).join()) {
             Thread.sleep(200);
         }
-        int until = server.getTickCount() + SETTLE_TICKS;
+        int until = server.getTickCount() + Splice.SETTLE_TICKS;
         while (server.getTickCount() < until) Thread.sleep(50);
         int[] unloaded = new int[1];
         List<String> kept = server.submit(() -> {

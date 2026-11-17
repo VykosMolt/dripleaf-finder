@@ -8,6 +8,7 @@ import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import dripleaffinder.Finder;
 import java.util.Optional;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
@@ -32,10 +33,8 @@ public final class DripleafLines {
         SEE_THROUGH = RenderType.create("dripleaffinder_lines_see_through", RenderSetup.builder(pipeline).createRenderSetup());
     }
 
-    static final float WIDTH = 1.5f;
-
     public static void vertex(VertexConsumer lines, PoseStack.Pose pose, float x, float y, float z, int color, Vector3f normal) {
-        lines.addVertex(pose, x, y, z).setColor(color).setNormal(pose, normal).setLineWidth(WIDTH);
+        lines.addVertex(pose, x, y, z).setColor(color).setNormal(pose, normal).setLineWidth(Finder.LINE_WIDTH);
     }
 
     private DripleafLines() {

@@ -5,7 +5,6 @@ import net.minecraft.client.renderer.CoreShaders;
 import net.minecraft.client.renderer.FogParameters;
 
 final class Gl {
-    static final float WIDTH = 1.5f;
     private static FogParameters fog;
 
     static void setup() {
@@ -14,7 +13,7 @@ final class Gl {
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
         RenderSystem.disableCull();
-        RenderSystem.lineWidth(WIDTH);
+        RenderSystem.lineWidth(Finder.LINE_WIDTH);
         fog = RenderSystem.getShaderFog();
         RenderSystem.setShaderFog(FogParameters.NO_FOG);
     }

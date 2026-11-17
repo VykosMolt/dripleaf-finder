@@ -116,7 +116,7 @@ public final class SeedSearch {
         } catch (IOException e) {
             Finder.message("Could not set aside the predictions of seed " + before + ": " + e.getMessage());
         }
-        if (key.equals(finder.dataKey())) finder.reloadData();
+        if (key.equals(finder.memory.key())) finder.reloadData();
     }
 
     public String typedSeed() {
@@ -327,7 +327,7 @@ public final class SeedSearch {
         for (Run run : list) {
             run.process.destroyForcibly();
             try {
-                run.process.waitFor(2, TimeUnit.SECONDS);
+                run.process.waitFor(Run.EXIT_WAIT_SECONDS, TimeUnit.SECONDS);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
@@ -428,7 +428,7 @@ public final class SeedSearch {
                 + " spliced top halves (" + both + " in both chunk orders), " + lush.size() + " lush cave tiles; saved for " + key + ".";
         }
         Finder.message(lastResult);
-        boolean here = key.equals(finder.dataKey());
+        boolean here = key.equals(finder.memory.key());
         if (here) finder.reloadData();
         if (missedLive) finder.announceSavedOnReturn(key);
         else if (here) finder.markPredictionsAnnounced();
@@ -532,6 +532,8 @@ public final class SeedSearch {
     }
 
     static final class Run {
+        static final int EXIT_WAIT_SECONDS = 30, DELETE_ATTEMPTS = 8;
+
         final String order;
         final Path dir;
         final Process process;
@@ -546,9 +548,13 @@ public final class SeedSearch {
 
         static Run start(Path gameDir, String seed, String order, BlockPos center, int radius, boolean floors, Searchers.Launch launch)
                 throws IOException {
-            Path dir = gameDir.resolve("dripleaf-finder").resolve("search").resolve(order);
-            delete(dir);
-            Files.createDirectories(dir);
+            Path searches = gameDir.resolve("dripleaf-finder").resolve("search"), dir = searches.resolve(order);
+            try {
+                delete(dir);
+                Files.createDirectories(dir);
+            } catch (IOException stillOpen) {
+                dir = Files.createTempDirectory(searches, order + "-");
+            }
             Properties server = new Properties();
             server.setProperty("level-seed", seed);
             for (String[] kv : new String[][] {{"online-mode", "false"}, {"server-ip", "127.0.0.1"}, {"server-port", "0"},
@@ -584,7 +590,7 @@ public final class SeedSearch {
 
         void deleteWorld() {
             try {
-                process.waitFor(5, TimeUnit.SECONDS);
+                process.waitFor(EXIT_WAIT_SECONDS, TimeUnit.SECONDS);
                 delete(dir.resolve("world"));
             } catch (IOException e) {
             } catch (InterruptedException e) {
@@ -593,9 +599,26 @@ public final class SeedSearch {
         }
 
         static void delete(Path path) throws IOException {
+            for (int attempt = 1; ; attempt++) {
+                try {
+                    deleteOnce(path);
+                    return;
+                } catch (IOException e) {
+                    if (attempt == DELETE_ATTEMPTS) throw e;
+                    try {
+                        Thread.sleep(250);
+                    } catch (InterruptedException interrupted) {
+                        Thread.currentThread().interrupt();
+                        throw e;
+                    }
+                }
+            }
+        }
+
+        private static void deleteOnce(Path path) throws IOException {
             if (!Files.exists(path)) return;
             try (Stream<Path> all = Files.walk(path)) {
-                for (Path p : all.sorted(Comparator.reverseOrder()).toList()) Files.delete(p);
+                for (Path p : all.sorted(Comparator.reverseOrder()).toList()) Files.deleteIfExists(p);
             }
         }
 

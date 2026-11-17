@@ -41,7 +41,7 @@ final class Splice {
         return false;
     }
 
-    static final int SETTLE_TICKS = 200;
+    static final int SETTLE_TICKS = 200, SETTLE_RANGE = 32;
 
     static Boolean settle(BlockGetter world, BlockPos pos, int nearTicks, Predicate<BlockPos> lush) {
         if (nearTicks < SETTLE_TICKS) return null;

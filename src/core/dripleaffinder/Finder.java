@@ -25,7 +25,8 @@ public final class Finder {
     static final int PREDICTED_COLOR = 0xFFFFAA00;
     static final int LUSH_COLOR = 0xFFF0F0F0;
     static final int AZALEA_COLOR = 0xFFFF66CC;
-    static final int DRAW_RANGE = 384, LUSH_PING = 128, SETTLE_RANGE = 32;
+    static final int DRAW_RANGE = 384, LUSH_PING = 128;
+    public static final float LINE_WIDTH = 1.5f;
     static final Path DATA = FabricLoader.getInstance().getConfigDir().resolve("dripleaf");
 
     public interface BoxSink {
@@ -119,7 +120,7 @@ public final class Finder {
         clearWorld();
         level = next;
         memory.enter(DataKey.of(Compat.serverAddress(mc), Compat.singleplayerWorld(mc)));
-        loadData();
+        reloadData();
         if (!predicted.isEmpty() && !memory.predictionsAnnounced && mc.player != null) {
             memory.predictionsAnnounced = true;
             BlockPos here = mc.player.blockPosition();
@@ -130,28 +131,21 @@ public final class Finder {
         }
     }
 
-    private void loadData() {
+    void reloadData() {
         predicted.clear();
         lush.clear();
         if (level == null || !Compat.overworld(level)) return;
         Path folder = DATA.resolve(memory.key());
-        for (String[] f : rows(folder.resolve("predictions.tsv"), 6, 3)) {
-            BlockPos pos = new BlockPos(Integer.parseInt(f[0]), Integer.parseInt(f[1]), Integer.parseInt(f[2]));
-            if (f.length > 6 && !f[6].equals("yes")) continue;
-            String why = f.length > 9 ? Guidance.text(pos.getX(), pos.getZ(), f[4], f[8], f[9]) : f[5];
-            if (!memory.settled.contains(pos)) predicted.put(pos, f[3] + " half, " + why);
+        for (String line : lines(folder.resolve("predictions.tsv"))) {
+            Prediction row = Prediction.parse(line);
+            if (row == null || !row.survived()) continue;
+            String text = row.half() + " half, " + row.why();
+            if (!memory.settled.contains(row.pos())) predicted.put(row.pos(), text);
         }
-        for (String[] f : rows(folder.resolve("lush.tsv"), 4, 4)) {
-            lush.put(new BlockPos(Integer.parseInt(f[0]), Integer.parseInt(f[1]), Integer.parseInt(f[2])), Integer.parseInt(f[3]));
+        for (String line : lines(folder.resolve("lush.tsv"))) {
+            int[] f = Data.ints(line, 4);
+            if (f != null) lush.put(new BlockPos(f[0], f[1], f[2]), f[3]);
         }
-    }
-
-    void reloadData() {
-        loadData();
-    }
-
-    String dataKey() {
-        return memory.key();
     }
 
     public static String connectionKey(Minecraft mc) {
@@ -175,9 +169,9 @@ public final class Finder {
         Compat.toast(Minecraft.getInstance(), text);
     }
 
-    private List<String[]> rows(Path file, int fields, int ints) {
+    private List<String> lines(Path file) {
         try {
-            return Data.rows(Data.lines(file), fields, ints);
+            return Data.lines(file);
         } catch (IOException | RuntimeException e) {
             message("Could not read " + file + " (" + e.getMessage() + ")");
             return List.of();
@@ -193,19 +187,17 @@ public final class Finder {
             + floor + " lush cave floor blocks)";
     }
 
-    private String emptyReason(boolean empty, String file, String tool) {
-        if (!empty) return null;
-        if (!settings.enabled) return "The finder is off (/dripleaf on).";
-        if (level == null) return "Join a world first.";
-        if (!Compat.overworld(level)) return "Only kept for the Overworld.";
-        return "Nothing known for " + memory.key() + ". " + tool + " writes " + DATA.resolve(memory.key()).resolve(file)
-            + "; rejoin after.";
+    private String whyEmpty(String none, String noneKnown) {
+        if (!settings.enabled) return none + ". The finder is off (/dripleaf on).";
+        if (level == null) return none + ". Join a world first.";
+        if (!Compat.overworld(level)) return none + ". Only kept for the Overworld.";
+        return noneKnown + " for " + memory.key() + " yet. Set the world seed (World Seed, or /dripleaf seed <seed>)"
+            + " and run a seed search (Seed Search, or /dripleaf search).";
     }
 
     public void listNearestLush() {
-        String why = emptyReason(lush.isEmpty(), "lush.tsv", "lush-caves.sh <seed> <x> <z> <radius> <host>");
-        if (why != null) {
-            message("No lush caves. " + why);
+        if (lush.isEmpty()) {
+            message(whyEmpty("No lush caves", "No lush caves known"));
             return;
         }
         BlockPos here = Minecraft.getInstance().player.blockPosition();
@@ -214,10 +206,8 @@ public final class Finder {
     }
 
     public void listNearest() {
-        String why = emptyReason(predicted.isEmpty(), "predictions.tsv",
-            "seed-search.sh <seed> <x> <z> <radius> <host> (only useful where the server's features follow the world seed)");
-        if (why != null) {
-            message("No predicted positions. " + why);
+        if (predicted.isEmpty()) {
+            message(whyEmpty("No predicted positions", "No spliced dripleaf predicted"));
             return;
         }
         BlockPos here = Minecraft.getInstance().player.blockPosition();
@@ -251,7 +241,7 @@ public final class Finder {
             }
         }
         predicted.keySet().removeIf(pos -> {
-            if (pos.distSqr(here) > SETTLE_RANGE * SETTLE_RANGE || Compat.loadedChunk(level, pos.getX() >> 4, pos.getZ() >> 4) == null) {
+            if (pos.distSqr(here) > Splice.SETTLE_RANGE * Splice.SETTLE_RANGE || Compat.loadedChunk(level, pos.getX() >> 4, pos.getZ() >> 4) == null) {
                 near.remove(pos);
                 return false;
             }

@@ -9,11 +9,10 @@ final class Memory {
     boolean predictionsAnnounced;
     private String key;
 
-    boolean enter(String next) {
-        if (next.equals(key)) return false;
+    void enter(String next) {
+        if (next.equals(key)) return;
         forget();
         key = next;
-        return true;
     }
 
     void forget() {
