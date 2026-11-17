@@ -69,7 +69,6 @@ public final class Finder {
             clearWorld();
             memory.forget();
         }
-        message("Dripleaf Finder " + (on ? "on" : "off"));
         if (enabledListener != null) enabledListener.accept(on);
     }
 
