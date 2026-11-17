@@ -352,8 +352,14 @@ public final class SeedSearch {
         }
         failures.forEach(Finder::message);
         if (saveError != null) Finder.message(saveError);
-        String halves = hits.size() + (hits.size() == 1 ? " half, " : " halves, ");
-        results.put(key, !done ? brief("Failed: " + failed.values().iterator().next(), STATUS_LENGTH)
+        boolean kept = !done && saveError == null && (!hits.isEmpty() || !lush.isEmpty());
+        if (kept) {
+            Finder.message("Kept what it found before that: " + hits.size() + " spliced top halves, " + lush.size() + " lush cave tiles; saved for "
+                + key + ".");
+        }
+        String halves = hits.size() + (hits.size() == 1 ? " half, " : " halves, "), suffix = !kept ? ""
+            : " (" + (hits.isEmpty() ? lush.size() + " lush" : hits.size()) + " kept)";
+        results.put(key, !done ? brief("Failed: " + failed.values().iterator().next(), STATUS_LENGTH - suffix.length()) + suffix
             : saveError != null ? "Could not save results"
             : !complete ? "Done, " + String.join(", ", failed.keySet()) + " failed: " + halves + lush.size() + " lush"
             : "Done: " + halves + lush.size() + " lush tiles, " + seconds + " s");
