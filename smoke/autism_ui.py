@@ -505,9 +505,10 @@ def flow_j():
     if button != "Stop":
         raise Abort("no offline Stop button")
     click(s.button("Seed Search"))
-    s = view("j-stopped-offline", rows=("Status", "Seed Search"))
-    status, button = s.value("Status"), s.button("Seed Search")[0]
-    check("j2. Stop works outside a world", "stopped" in status.lower() and button == "Search", f"status={status!r} button={button!r}", s)
+    s = view("j-stopped-offline", rows=("Status",))
+    status = s.value("Status")
+    check("j2. Stop works outside a world", "stopped" in status.lower() and s.find("Seed Search") is None,
+          f"status={status!r}; offline search action present={s.find('Seed Search') is not None}", s)
 
 
 def flow_h():
@@ -530,6 +531,9 @@ def flow_h():
     check("h. a different server starts without the seed", read(KEY_B, "seed.txt") is None and "empty" in box and read(KEY_A, "seed.txt") == "1234567890"
           and kind.startswith("Auto"), f"{KEY_B}/seed.txt={read(KEY_B, 'seed.txt')!r} box={box!r} server type={kind!r} "
           f"{KEY_A}/seed.txt={read(KEY_A, 'seed.txt')!r}", s)
+    s = view("h-search-restored", rows=("Seed Search",))
+    button = s.button("Seed Search")[0]
+    check("h1. Search returns after joining a world", button == "Search", f"button={button!r}", s)
 
 
 def main():
