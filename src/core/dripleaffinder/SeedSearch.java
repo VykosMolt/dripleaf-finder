@@ -35,7 +35,7 @@ public final class SeedSearch {
     private static final Object SETUP = new Object();
     private volatile int generation;
     private volatile Setup setup;
-    private boolean missedLive;
+    private final List<BlockPos> missed = new ArrayList<>();
     private String key, pendingKey;
     private BlockPos center;
     private int radius, ticks;
@@ -118,7 +118,7 @@ public final class SeedSearch {
         failures.clear();
         leftOut = null;
         spawn = null;
-        missedLive = false;
+        missed.clear();
         Setup mine = new Setup(++generation);
         setup = mine;
         Path gameDir = FabricLoader.getInstance().getGameDir();
@@ -279,6 +279,7 @@ public final class SeedSearch {
 
     void tick(Minecraft mc) {
         if (!running() || ticks++ % 20 != 0) return;
+        announceMissed(mc);
         Setup pending = setup;
         if (pending != null) {
             boolean complete = pending.complete;
@@ -337,14 +338,8 @@ public final class SeedSearch {
                 }
                 String first = f.length > 6 ? f[5] : "-", then = f.length > 6 ? f[6] : "-";
                 hits.put(pos, new String[] {f[4], run.order, first, then});
-                if (mc.player == null || !key.equals(Finder.connectionKey(mc))) {
-                    missedLive = true;
-                    return;
-                }
-                String guidance = Guidance.text(pos.getX(), pos.getZ(), f[4], first, then, finder.folia);
-                finder.addPrediction(new Prediction(pos, "top", f[4], null, true, first, then));
-                finder.announce("Spliced small dripleaf top half from the seed at " + pos.getX() + " " + pos.getY() + " " + pos.getZ()
-                    + ", " + (int) Finder.flatDistance(pos, overworld(mc.player.blockPosition(), mc.level.dimension())) + " blocks away: " + guidance);
+                missed.add(pos);
+                announceMissed(mc);
             }
             case "done" -> {
                 run.finished = true;
@@ -357,6 +352,18 @@ public final class SeedSearch {
             default -> {
             }
         }
+    }
+
+    private void announceMissed(Minecraft mc) {
+        if (mc.player == null || !key.equals(Finder.connectionKey(mc))) return;
+        BlockPos here = overworld(mc.player.blockPosition(), mc.level.dimension());
+        for (BlockPos pos : missed) {
+            String[] h = hits.get(pos);
+            finder.addPrediction(new Prediction(pos, "top", h[0], null, true, h[2], h[3]));
+            finder.announce("Spliced small dripleaf top half from the seed at " + pos.getX() + " " + pos.getY() + " " + pos.getZ() + ", "
+                + (int) Finder.flatDistance(pos, here) + " blocks away: " + Guidance.text(pos.getX(), pos.getZ(), h[0], h[2], h[3], finder.folia));
+        }
+        missed.clear();
     }
 
     private void finish(Minecraft mc) {
@@ -399,7 +406,8 @@ public final class SeedSearch {
         }
         boolean here = key.equals(finder.memory.key());
         if (here) finder.reloadData();
-        if (missedLive) finder.announceSavedOnReturn(key);
+        announceMissed(Minecraft.getInstance());
+        if (!missed.isEmpty()) finder.announceSavedOnReturn(key);
         else if (here) finder.markPredictionsAnnounced();
         return null;
     }
