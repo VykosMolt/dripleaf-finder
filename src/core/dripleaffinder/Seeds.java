@@ -63,7 +63,7 @@ public final class Seeds {
         if (Objects.equals(before, seed(key))) return;
         if (finder.search.searching(key)) {
             finder.search.stop(false);
-            finder.search.lastResult = "Stopped: seed changed";
+            finder.search.results.put(key, "Stopped: seed changed");
         }
         Path saved = Finder.DATA.resolve(key).resolve("predictions.tsv");
         try {

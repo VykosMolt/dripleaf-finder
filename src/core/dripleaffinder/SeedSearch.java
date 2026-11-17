@@ -27,7 +27,7 @@ public final class SeedSearch {
     private final List<String> lush = new ArrayList<>();
     private final Map<String, String> failed = new LinkedHashMap<>();
     private final List<String> failures = new ArrayList<>();
-    String lastResult;
+    final Map<String, String> results = new HashMap<>();
     private String leftOut;
     private int[] spawn;
     private static final Object SETUP = new Object();
@@ -67,28 +67,28 @@ public final class SeedSearch {
         }
         String key = Finder.connectionKey(mc), seed = finder.seeds.seed();
         if (mc.player == null || key == null) {
-            refuse("Join a world first", "Join a world first.", chat);
+            refuse(key, "Join a world first", "Join a world first.", chat);
             return;
         }
         if (finder.seeds.typedVersion() == null && finder.serverVersion.asking(key)) {
-            refuse("Asking the server's version; retry", "Still asking the server which version it runs; search again in a few seconds.",
+            refuse(key, "Asking the server's version; retry", "Still asking the server which version it runs; search again in a few seconds.",
                 chat);
             return;
         }
         String[] gen = finder.seeds.generationVersion();
         String target = gen[0];
         if (!Searchers.versions().contains(target)) {
-            refuse("No search for " + target + ": set World Version",
+            refuse(key, "No search for " + target + ": set World Version",
                 "No seed search for " + target + " (" + gen[1] + "): " + Searchers.supported() + ". Pick one in World Version.", chat);
             return;
         }
         if (Versions.java(target) > Runtime.version().feature()) {
-            refuse("Needs Java " + Versions.java(target) + " for " + target, "A " + target + " world needs Java " + Versions.java(target)
+            refuse(key, "Needs Java " + Versions.java(target) + " for " + target, "A " + target + " world needs Java " + Versions.java(target)
                 + " to generate; this game runs on Java " + Runtime.version().feature() + ".", chat);
             return;
         }
         if (seed == null) {
-            refuse("No seed: set World Seed", "No seed: set World Seed first.", chat);
+            refuse(key, "No seed: set World Seed", "No seed: set World Seed first.", chat);
             return;
         }
         radius = Math.max(MenuModel.MIN_RADIUS, Math.min(MAX_RADIUS, radius));
@@ -97,7 +97,7 @@ public final class SeedSearch {
         if (servers == 0) {
             int fits = 0;
             for (int r = MenuModel.MIN_RADIUS; r <= MAX_RADIUS; r += MenuModel.RADIUS_STEP) if (serversThatFit(available, r) > 0) fits = r;
-            refuse(fits > 0 ? "Not enough memory: radius ≤ " + fits : "Not enough memory: needs " + (SearchRun.serverMb(MenuModel.MIN_RADIUS) + 1024) + " MB",
+            refuse(key, fits > 0 ? "Not enough memory: radius ≤ " + fits : "Not enough memory: needs " + (SearchRun.serverMb(MenuModel.MIN_RADIUS) + 1024) + " MB",
                 "Not enough memory for radius " + radius + ": a search server needs " + SearchRun.serverMb(radius) + " MB plus 1024 MB to spare, "
                     + "and Search Memory and free memory allow " + available + " MB. "
                     + (fits > 0 ? "A Search Radius of " + fits + " fits." : "Close other programs or raise Search Memory."), chat);
@@ -111,7 +111,7 @@ public final class SeedSearch {
         this.startedAt = System.currentTimeMillis();
         hits.clear();
         lush.clear();
-        lastResult = null;
+        results.remove(key);
         failed.clear();
         failures.clear();
         leftOut = null;
@@ -163,8 +163,8 @@ public final class SeedSearch {
             + center.getX() + " " + center.getZ() + (both ? "." : ", one chunk order after the other (Search Memory allows one at a time)."));
     }
 
-    private void refuse(String status, String detail, boolean chat) {
-        lastResult = brief(status, STATUS_LENGTH);
+    private void refuse(String key, String status, String detail, boolean chat) {
+        results.put(key, brief(status, STATUS_LENGTH));
         if (chat) Finder.message(detail);
     }
 
@@ -173,9 +173,16 @@ public final class SeedSearch {
         failures.add(detail);
     }
 
+    String lastResult() {
+        return results.get(Finder.connectionKey(Minecraft.getInstance()));
+    }
+
     public String status() {
         Setup pending = setup;
-        if (!running()) return lastResult == null ? "No search yet" : lastResult;
+        if (!running()) {
+            String last = lastResult();
+            return last == null ? "No search yet" : last;
+        }
         SearchRun current = runs.stream().filter(run -> !run.finished).findFirst().orElse(null);
         String phase = current != null ? current.progress : pending != null ? pending.phase : "saving";
         long seconds = (System.currentTimeMillis() - startedAt) / 1000;
@@ -196,6 +203,7 @@ public final class SeedSearch {
 
     private long availableMb() {
         long free = ((OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean()).getFreeMemorySize() >> 20;
+        if (!Files.exists(Path.of("/proc/meminfo")) && System.getProperty("os.name", "").startsWith("Mac")) free = Settings.TOTAL_MEMORY >> 21;
         try {
             for (String line : Files.readAllLines(Path.of("/proc/meminfo"))) {
                 if (line.startsWith("MemAvailable:")) free = Long.parseLong(line.replaceAll("\\D", "")) >> 10;
@@ -238,7 +246,7 @@ public final class SeedSearch {
         if (pending != null) kill(pending.launched);
         runs.clear();
         pendingKey = null;
-        refuse("Stopped", "Seed search stopped.", fromCommand);
+        refuse(key, "Stopped", "Seed search stopped.", fromCommand);
     }
 
     private void kill(List<SearchRun> stopping) {
@@ -257,7 +265,7 @@ public final class SeedSearch {
             if (complete) {
                 setup = null;
                 if (pending.error != null && runs.isEmpty()) {
-                    refuse("Could not start: " + pending.error, "Seed search could not start: " + pending.error, true);
+                    refuse(key, "Could not start: " + pending.error, "Seed search could not start: " + pending.error, true);
                     startPending(mc);
                     return;
                 }
@@ -287,7 +295,7 @@ public final class SeedSearch {
         switch (f[0]) {
             case "status" -> {
                 String[] w = f[1].split(" ");
-                if (f[1].startsWith("finding")) run.progress = f[1];
+                if (f[1].matches("(finding|scanning|measuring) .*")) run.progress = f[1];
                 else if (f[1].startsWith("decorated ")) run.progress = "decorating " + 100 * Long.parseLong(w[1]) / Math.max(1, Long.parseLong(w[3])) + "%";
                 else if (f[1].contains(" candidates among ")) run.progress = "checking " + w[0] + " candidates";
             }
@@ -351,10 +359,10 @@ public final class SeedSearch {
         failures.forEach(Finder::message);
         if (saveError != null) Finder.message(saveError);
         String halves = hits.size() + (hits.size() == 1 ? " half, " : " halves, ");
-        if (!done) lastResult = brief("Failed: " + failed.values().iterator().next(), STATUS_LENGTH);
-        else if (saveError != null) lastResult = "Could not save results";
-        else if (!complete) lastResult = "Done, " + String.join(", ", failed.keySet()) + " failed: " + halves + lush.size() + " lush";
-        else lastResult = "Done: " + halves + lush.size() + " lush tiles, " + seconds + " s";
+        results.put(key, !done ? brief("Failed: " + failed.values().iterator().next(), STATUS_LENGTH)
+            : saveError != null ? "Could not save results"
+            : !complete ? "Done, " + String.join(", ", failed.keySet()) + " failed: " + halves + lush.size() + " lush"
+            : "Done: " + halves + lush.size() + " lush tiles, " + seconds + " s");
         boolean here = key.equals(finder.memory.key());
         if (here) finder.reloadData();
         if (missedLive) finder.announceSavedOnReturn(key);

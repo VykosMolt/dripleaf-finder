@@ -70,12 +70,16 @@ public final class Searcher implements ModInitializer {
             out.line("status", "finding lush caves");
             Set<Long> lush = lushChunks(level, x, z, radius);
             out.line("status", lush.size() + " lush cave chunks within " + radius + " blocks");
+            out.line("status", "scanning spawn");
             BlockPos spawn = SearchCompat.spawn(level);
             int reach = startupReach(server, level, spawn);
             Set<Long> startup = reach < 0 ? Set.of() : dilate(Set.of(key(spawn.getX() >> 4, spawn.getZ() >> 4)), reach + 1);
             if (!Collections.disjoint(dilate(lush, 3), startup)) out.line("spawn", spawn.getX() + "\t" + spawn.getZ() + "\t" + (reach + 2) * 16);
             lush.removeAll(startup);
-            if (Boolean.parseBoolean(spec.getProperty("floors"))) floors(server, level, lush, out);
+            if (Boolean.parseBoolean(spec.getProperty("floors"))) {
+                out.line("status", "measuring floors");
+                floors(server, level, lush, out);
+            }
             int hits = Boolean.parseBoolean(spec.getProperty("splices"))
                 ? splices(server, level, lush, startup, "desc".equals(spec.getProperty("order")), out) : 0;
             out.line("done", hits + "\t" + (System.currentTimeMillis() - started) / 1000);

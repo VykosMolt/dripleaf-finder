@@ -83,7 +83,7 @@ public final class Smoke implements ClientModInitializer {
     }
 
     boolean searchDone(Finder finder, int arrivedAt) {
-        return !finder.search.running() && (finder.search.lastResult != null || ticks - arrivedAt > 20 * 60);
+        return !finder.search.running() && (finder.search.lastResult() != null || ticks - arrivedAt > 20 * 60);
     }
 
     void shoot(Minecraft mc, String result) {

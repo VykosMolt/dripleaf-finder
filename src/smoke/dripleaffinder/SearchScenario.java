@@ -52,7 +52,7 @@ final class SearchScenario implements Scenario {
             if (ticks - arrivedAt > 20 * 900) smoke.shoot(mc, "FAIL search still running after 15 min");
             return;
         }
-        String last = finder.search.lastResult, saved = saved();
+        String last = finder.search.lastResult(), saved = saved();
         boolean ok = last != null && last.startsWith("Done:") && !finder.search.hits.isEmpty() && phases.contains("decorating")
             && finder.search.hits.keySet().stream().allMatch(pos -> saved.contains(pos.getX() + "\t" + pos.getY() + "\t" + pos.getZ() + "\ttop"));
         smoke.shoot(mc, (ok ? "PASS " : "FAIL ") + notes + "status phases " + phases + "; " + last + " Saved: " + saved.replace('\n', '|'));
