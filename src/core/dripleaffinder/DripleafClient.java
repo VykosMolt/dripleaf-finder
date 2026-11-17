@@ -20,6 +20,7 @@ public final class DripleafClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        if (!FabricLoader.getInstance().isModLoaded("autism")) return;
         Finder finder = finder();
         ClientTickEvents.END_CLIENT_TICK.register(mc -> {
             finder.tick(mc);

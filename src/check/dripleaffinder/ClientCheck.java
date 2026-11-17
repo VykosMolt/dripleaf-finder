@@ -50,6 +50,12 @@ public final class ClientCheck {
         memory.enter("b");
         boolean other = memory.announced.add(p);
         expect("memory", java.util.List.of(first, again, other, memory.key()), java.util.List.of(true, false, true, "b"));
+        memory.lushPinged.add(p);
+        memory.settled.add(p);
+        memory.predictionsAnnounced = true;
+        memory.predictionsChanged();
+        expect("prediction memory", java.util.List.of(memory.key(), memory.announced.contains(p), memory.lushPinged.isEmpty(),
+                memory.settled.isEmpty(), memory.predictionsAnnounced), java.util.List.of("b", true, true, true, false));
 
         expect("data keys", java.util.List.of(DataKey.of("Play.Example.org:25565", null),
                 DataKey.of(null, "New World (2)"), DataKey.of(null, null), DataKey.of(null, ".."),
@@ -57,13 +63,12 @@ public final class ClientCheck {
             java.util.List.of("play.example.org", "local-new_world__2_", "local", "local", "play.example.org_25601", "play.example.org"));
 
         expect("splice guidance", java.util.List.of(
-            Guidance.text(3705, 62, "air", "231,3", "232,3", false),
-            Guidance.text(3705, 62, "cave_air", "230,2", "231,3", false),
-            Guidance.text(3705, 62, "smooth_basalt", "231,3", "231,3", false),
-            Guidance.text(3705, 62, "smooth_basalt", "-", "-", false),
-            Guidance.text(3705, 62, "air", "231,3", "-", false),
-            Guidance.text(3705, 62, "air", "231,3", "x,3", false),
-            String.valueOf(Guidance.approach("231,3", "-")),
+            Guidance.text(3705, 62, "air", "231,3", "232,3"),
+            Guidance.text(3705, 62, "cave_air", "230,2", "231,3"),
+            Guidance.text(3705, 62, "smooth_basalt", "231,3", "231,3"),
+            Guidance.text(3705, 62, "smooth_basalt", "-", "-"),
+            Guidance.text(3705, 62, "air", "231,3", "-"),
+            Guidance.text(3705, 62, "air", "231,3", "x,3"),
             Guidance.direction(0, -1) + " " + Guidance.direction(1, 1)),
             java.util.List.of(
                 "cut by a geode; real only if its own chunk generated before the chunk to its east (in unexplored land: walk in from the west)",
@@ -73,7 +78,6 @@ public final class ClientCheck {
                 "cut by a geode; the chunk order it needs is unknown",
                 "cut by a geode; the chunk order it needs is unknown",
                 "cut by a geode; the chunk order it needs is unknown",
-                "null",
                 "north south-east"));
         expect("server versions", java.util.Arrays.asList(Versions.fromStatus("Paper 1.21.4", 769), Versions.fromStatus("1.20.1", 763),
             Versions.fromStatus("Velocity 3.3.0-SNAPSHOT (git-abc) 1.7.2-1.21.11", 774), Versions.fromStatus("Waterfall", 767),
@@ -88,16 +92,17 @@ public final class ClientCheck {
             "116\t40\t200\ttop\tair\tasc\tyes\t300\t7,12\t8,12", "132\t40\t200\ttop\tair\tasc\tyes\t300\t-\t-",
             "148\t40\t200\ttop\tair\tasc\tyes\t300", "164\t40\t200\ttop\tcave_air\tdesc\tyes\t300\t10,12\t10,12")
             .map(Prediction::parse).toList();
-        java.util.List<Integer> anyOrder = rows.stream().filter(Prediction::anyOrder).map(row -> row.pos().getX()).toList();
-        String folia = "Folia: about " + Guidance.FOLIA_ODDS + " (random chunk order)";
-        expect("folia guidance", java.util.List.of(rows.size(), anyOrder, rows.stream().map(row -> row.text(true)).toList(), rows.get(1).text(false)),
-            java.util.List.of(5, java.util.List.of(100, 164), java.util.List.of("top half, cut by a geode; real in any chunk order",
-                    "top half, cut by a geode; " + folia, "top half, cut by a geode; " + folia, "top half, asc",
-                    "top half, cut by a mineshaft or trial chamber corridor; real in any chunk order"),
-                "top half, cut by a geode; real only if its own chunk generated before the chunk to its east (in unexplored land: walk in from the west)"));
+        expect("prediction guidance", rows.stream().map(Prediction::text).toList(),
+            java.util.List.of("top half, cut by a geode; real in any chunk order",
+                "top half, cut by a geode; real only if its own chunk generated before the chunk to its east (in unexplored land: walk in from the west)",
+                "top half, cut by a geode; the chunk order it needs is unknown", "top half, asc",
+                "top half, cut by a mineshaft or trial chamber corridor; real in any chunk order"));
         expect("host names", java.util.List.of(DataKey.host("Java.HugoSMP.net:25565"), DataKey.host("hugosmp.net."),
-                DataKey.host(null), DataKey.host(".."), DataKey.host("[::1]:25565")),
-            java.util.List.of("java.hugosmp.net", "hugosmp.net", "local", "unknown", "unknown"));
+                DataKey.host(null), DataKey.host(".."), DataKey.host("[::1]:25565"), DataKey.of("[2001:DB8::1]:25565", null),
+                DataKey.of("[2001:db8::2]:25566", null), DataKey.of("2001:db8::3", null), DataKey.of("майн.рф", null),
+                DataKey.of("МАЙН.РФ:25570", null), DataKey.host("example.com:abc")),
+            java.util.List.of("java.hugosmp.net", "hugosmp.net", "local", "unknown", "[__1]", "[2001_db8__1]", "[2001_db8__2]_25566",
+                "[2001_db8__3]", "xn--80ashg.xn--p1ai", "xn--80ashg.xn--p1ai_25570", "unknown"));
         expect("windows device names", java.util.List.of(DataKey.of("CON", null), DataKey.of("aux.example.net:25601", null), DataKey.of("nul.", null),
                 DataKey.of("com1", null), DataKey.of("lpt9.example.net", null), DataKey.of("com10.net", null), DataKey.of("console.net", null),
                 DataKey.of("example.aux", null), DataKey.of(null, "con")),
@@ -115,11 +120,12 @@ public final class ClientCheck {
                 SeedSearch.brief("Failed: a.b.Outer$Inner", 40), SeedSearch.brief("Failed: out of memory", 40)),
             java.util.List.of("Failed: IllegalStateException: Not enou…", "Could not start: UnknownHostException: …",
                 "Failed: Outer$Inner", "Failed: out of memory"));
-        java.util.List<String> menuRows = java.util.List.of(FinderMenu.candidates(3, ServerType.PAPER, true, 0),
-            FinderMenu.candidates(3, ServerType.FOLIA, true, 3), FinderMenu.candidates(1234, ServerType.FOLIA, true, 1000),
-            FinderMenu.candidates(1234, ServerType.PAPER, false, 0));
-        expect("candidates row", java.util.List.of(menuRows.get(0), menuRows.get(1), menuRows.stream().allMatch(row -> row.length() <= SeedSearch.STATUS_LENGTH)),
-            java.util.List.of("3 here · Paper/Spigot (auto)", "3 here · Folia (auto), 1 in 2 each", true));
+        java.util.List<String> menuRows = java.util.List.of(FinderMenu.candidates(3, ServerType.PAPER, true),
+            FinderMenu.candidates(5, ServerType.FOLIA, true), FinderMenu.candidates(1234, ServerType.FOLIA, false),
+            FinderMenu.candidates(123456, ServerType.PAPER, true));
+        expect("candidates row", java.util.List.of(menuRows.get(0), menuRows.get(1), menuRows.get(2),
+                menuRows.stream().allMatch(row -> row.length() <= SeedSearch.STATUS_LENGTH)),
+            java.util.List.of("3 here · Paper/Spigot (auto)", "5 here · Folia (auto)", "1234 here · Folia", true));
         java.util.List<String> asides = java.util.stream.Stream.of("1.5", "15", "种子", "семя", "-42").map(seed -> Seeds.asideName("predictions", seed))
             .toList();
         expect("set-aside names", java.util.List.of(new HashSet<>(asides).size(), asides.get(1).startsWith("predictions-15-"),
@@ -159,7 +165,7 @@ public final class ClientCheck {
         commandLine();
 
         System.out.println("CLIENT CHECK PASSED: 2 azalea trees, trunkless leaves dropped; data rows, box edges, memory, data keys, host names,"
-            + " server versions, server types, folia guidance, splice guidance, search memory, brief status, candidates row, set-aside names, set aside,"
+            + " server versions, server types, prediction guidance, splice guidance, search memory, brief status, candidates row, set-aside names, set aside,"
             + " merged predictions, spawn chunks kept, overworld centre, unchecked candidates, search status, search command line");
     }
 

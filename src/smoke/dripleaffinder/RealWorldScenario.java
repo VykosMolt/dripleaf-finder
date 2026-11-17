@@ -127,10 +127,10 @@ final class RealWorldScenario implements Scenario {
             summary += " " + candidate.getX() + " " + candidate.getY() + " " + candidate.getZ() + " skipped (the player was near before);";
         }
         String[] hit = finder.search.hits.get(chosen);
-        double[] from = Guidance.approach(hit[2], hit[3]);
+        double[] from = approach(hit[2], hit[3]);
         String order = from == null ? "any" : String.format(Locale.ROOT, "%.3f %.3f", from[0], from[1]);
         chosenText = chosen.getX() + " " + chosen.getY() + " " + chosen.getZ() + " (" + hit[1] + "; "
-            + Guidance.text(chosen.getX(), chosen.getZ(), hit[0], hit[2], hit[3], finder.folia) + ")";
+            + Guidance.text(chosen.getX(), chosen.getZ(), hit[0], hit[2], hit[3]) + ")";
         searchDoneAt = smoke.ticks;
         arrivedAt = -1;
         try {
@@ -139,5 +139,13 @@ final class RealWorldScenario implements Scenario {
             throw new RuntimeException(e);
         }
         return true;
+    }
+
+    private static double[] approach(String first, String then) {
+        if (Guidance.anyOrder(first, then) || !Guidance.known(first) || !Guidance.known(then)) return null;
+        String[] a = first.split(","), b = then.split(",");
+        double dx = Integer.parseInt(a[0]) - Integer.parseInt(b[0]), dz = Integer.parseInt(a[1]) - Integer.parseInt(b[1]);
+        double length = Math.hypot(dx, dz);
+        return new double[] {dx / length, dz / length};
     }
 }

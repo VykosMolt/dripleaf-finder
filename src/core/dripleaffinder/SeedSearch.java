@@ -373,7 +373,7 @@ public final class SeedSearch {
             String[] h = hits.get(pos);
             finder.addPrediction(new Prediction(pos, "top", h[0], null, true, h[2], h[3]));
             finder.announce("Spliced small dripleaf top half from the seed at " + pos.getX() + " " + pos.getY() + " " + pos.getZ() + ", "
-                + (int) Finder.flatDistance(pos, here) + " blocks away: " + Guidance.text(pos.getX(), pos.getZ(), h[0], h[2], h[3], finder.folia));
+                + (int) Finder.flatDistance(pos, here) + " blocks away: " + Guidance.text(pos.getX(), pos.getZ(), h[0], h[2], h[3]));
         }
         missed.clear();
     }

@@ -66,10 +66,11 @@ public final class SelfCheck {
         expect("spliced, masked server", scan(true), masked);
         expect("spliced, plain server", scan(false), plain);
 
-        expect("settle", java.util.Arrays.asList(Splice.settle(chunk, new BlockPos(50, 20, -30), 190, SelfCheck::lush),
-                Splice.settle(chunk, new BlockPos(50, 20, -30), 200, SelfCheck::lush), Splice.settle(chunk, new BlockPos(49, 11, -31), 200, SelfCheck::lush),
-                Splice.settle(chunk, new BlockPos(62, 16, -18), 200, SelfCheck::lush), Splice.settle(chunk, new BlockPos(49, 25, -30), 200, SelfCheck::lush)),
-            java.util.Arrays.asList(null, true, false, true, false));
+        expect("settle", java.util.Arrays.asList(Splice.settle(chunk, new BlockPos(50, 20, -30), 190, false, SelfCheck::lush),
+                Splice.settle(chunk, new BlockPos(50, 20, -30), 200, false, SelfCheck::lush), Splice.settle(chunk, new BlockPos(49, 11, -31), 200, false, SelfCheck::lush),
+                Splice.settle(chunk, new BlockPos(62, 16, -18), 200, false, SelfCheck::lush), Splice.settle(chunk, new BlockPos(49, 25, -30), 200, false, SelfCheck::lush),
+                Splice.settle(chunk, new BlockPos(62, 16, -18), 190, true, SelfCheck::lush), Splice.settle(chunk, new BlockPos(62, 16, -18), 200, true, SelfCheck::lush)),
+            java.util.Arrays.asList(null, true, false, true, false, null, false));
 
         System.out.println("SELF-CHECK PASSED: masked server " + masked.size() + " / plain server " + plain.size()
             + " spliced top halves; whole plants, lone bottoms, big dripleaf, stone/deepslate/ore below, open sky, outside lush caves ignored;"

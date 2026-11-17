@@ -11,7 +11,6 @@ import java.nio.file.Path;
 public final class Settings {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
-    public boolean enabled = true;
     public boolean masked = false;
     public boolean lush = true;
     public boolean azalea = true;

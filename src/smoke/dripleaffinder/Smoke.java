@@ -60,6 +60,10 @@ public final class Smoke implements ClientModInitializer {
         if (joinedAt < 0) {
             joinedAt = ticks;
             if (!finder.enabled()) finder.setEnabled(true);
+            if (!finder.enabled()) {
+                System.out.println("SMOKE detector fixture: AUTISM has not enabled the test identity; using a test-only finder state");
+                finder.follow(() -> true, on -> {});
+            }
         }
         scenario.tick(mc, finder);
     }

@@ -23,6 +23,8 @@ if [ "$FLAG" = scx ]; then
   [ -n "$SCX" ] || { echo "SMOKE FAIL $MC $MODE: no SeedcrackerX release for $MC"; exit 2; }
   SMOKE_EXTRA="$HERE/seedcracker/$SCX${SMOKE_EXTRA:+:$SMOKE_EXTRA}"
 fi
+AUTISM="$(prop autism_jar | sed "s|^~|$HOME|")"
+[ -n "$AUTISM" ] && SMOKE_EXTRA="$AUTISM${SMOKE_EXTRA:+:$SMOKE_EXTRA}"
 PORT=$(python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')
 pids=()
 cleanup() { for p in "${pids[@]}"; do kill "$p" 2>/dev/null; done; }

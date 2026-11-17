@@ -7,19 +7,17 @@ import autismclient.api.module.IntSetting;
 import autismclient.api.module.SimpleModule;
 import autismclient.api.module.StringSetting;
 import dripleaffinder.MenuModel;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 
 final class SplicedDripleaf extends SimpleModule {
     private final MenuModel model;
-    private boolean inWorld;
 
     SplicedDripleaf(MenuModel model) {
         super("spliced", "Spliced Dripleaf Finder", "Finds spliced small dripleaf.");
         this.model = model;
         add(new BoolSetting("masked", "Masked Server", false));
-        add(new ActionSetting("nearest", "Nearest Predictions", model::listPredictions).buttonLabel("List").requiresWorld());
+        add(new ActionSetting("nearest", "Nearest Predictions", model::listPredictions).buttonLabel("List"));
         add(new BoolSetting("lush", "Lush Cave Pings", true));
-        add(new ActionSetting("nearestLush", "Nearest Lush Caves", model::listLush).buttonLabel("List").requiresWorld());
+        add(new ActionSetting("nearestLush", "Nearest Lush Caves", model::listLush).buttonLabel("List"));
         add(new BoolSetting("azalea", "Azalea Trees", true));
         add(new StringSetting("seed", "World Seed", "").description("Press Enter to save.").requiresWorld().keepOnReset());
         add(new ChoiceSetting("version", "World Version", MenuModel.AUTO, model.versions())
@@ -32,15 +30,9 @@ final class SplicedDripleaf extends SimpleModule {
             .description("For the background search."));
         add(new StringSetting("status", "Status", "").readonlySummary());
         add(new StringSetting("candidates", "Candidates", "").readonlySummary());
-        add(new ActionSetting("search", "Seed Search", model::search).buttonLabel("Search").requiresWorld()
-            .visibleWhen(() -> !model.searching()));
-        add(new ActionSetting("stop", "Seed Search", model::stop).buttonLabel("Stop").visibleWhen(model::searching));
-        model.onEnabledChanged(this::setEnabledSilently);
-        ClientTickEvents.END_CLIENT_TICK.register(mc -> {
-            boolean joined = mc.player != null;
-            if (joined && !inWorld) model.setEnabled(isEnabled());
-            inWorld = joined;
-        });
+        add(new ActionSetting("search", "Seed Search", model::search).buttonLabel("Search").visibleWhen(() -> !model.searching()));
+        add(new ActionSetting("stop", "Seed Search", model::stop).buttonLabel("Stop").availableOffline().visibleWhen(model::searching));
+        model.follow(this::isEnabled, this::setEnabled);
     }
 
     @Override
@@ -49,13 +41,8 @@ final class SplicedDripleaf extends SimpleModule {
     }
 
     @Override
-    public void onEnable() {
-        model.setEnabled(true);
-    }
-
-    @Override
     public void onDisable() {
-        model.setEnabled(false);
+        model.turnedOff();
     }
 
     @Override
@@ -64,7 +51,10 @@ final class SplicedDripleaf extends SimpleModule {
             case "masked" -> String.valueOf(model.masked());
             case "lush" -> String.valueOf(model.lush());
             case "azalea" -> String.valueOf(model.azalea());
-            case "seed" -> model.inWorld() && model.seed() != null ? model.seed() : "";
+            case "seed" -> {
+                String seed = model.seed();
+                yield seed == null ? "" : seed;
+            }
             case "version" -> model.version();
             case "serverType" -> model.serverType();
             case "radius" -> String.valueOf(model.radius());

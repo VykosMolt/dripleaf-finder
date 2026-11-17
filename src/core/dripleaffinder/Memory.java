@@ -17,8 +17,12 @@ final class Memory {
 
     void forget() {
         key = null;
-        predictionsAnnounced = false;
+        predictionsChanged();
         announced.clear();
+    }
+
+    void predictionsChanged() {
+        predictionsAnnounced = false;
         lushPinged.clear();
         settled.clear();
     }

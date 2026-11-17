@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
@@ -37,14 +38,14 @@ public final class Finder {
     final Set<BlockPos> found = new HashSet<>();
     private final Set<LevelChunk> scanned = Collections.newSetFromMap(new WeakHashMap<>());
     final Map<BlockPos, Prediction> predicted = new HashMap<>();
-    boolean folia;
     private final Map<BlockPos, Integer> near = new HashMap<>();
     private final Map<BlockPos, Integer> lush = new HashMap<>();
     private final List<AABB> azaleas = new ArrayList<>();
     final Memory memory = new Memory();
     private ClientLevel level;
     private int ticks;
-    private Consumer<Boolean> enabledListener;
+    private BooleanSupplier enabled;
+    private Consumer<Boolean> turn;
 
     public final Seeds seeds = new Seeds(this);
     public final SeedSearch search = new SeedSearch(this);
@@ -54,28 +55,22 @@ public final class Finder {
         this.settings = settings;
     }
 
-    public void onEnabledChanged(Consumer<Boolean> listener) {
-        enabledListener = listener;
+    void follow(BooleanSupplier enabled, Consumer<Boolean> turn) {
+        this.enabled = enabled;
+        this.turn = turn;
     }
 
     public boolean enabled() {
-        return settings.enabled;
+        return enabled != null && enabled.getAsBoolean();
     }
 
     public void setEnabled(boolean on) {
-        if (settings.enabled == on) return;
-        settings.enabled = on;
-        settings.save();
-        if (!on) {
-            clearWorld();
-            memory.forget();
-        }
-        message("Dripleaf Finder " + (on ? "on" : "off"));
-        if (enabledListener != null) enabledListener.accept(on);
+        if (turn != null) turn.accept(on);
     }
 
-    public void toggle() {
-        setEnabled(!settings.enabled);
+    void turnedOff() {
+        clearWorld();
+        memory.forget();
     }
 
     public void setMasked(boolean on) {
@@ -99,7 +94,7 @@ public final class Finder {
     }
 
     void status() {
-        message("Dripleaf Finder " + (settings.enabled ? "on" : "off") + " | masked server " + (settings.masked ? "yes" : "no")
+        message("Dripleaf Finder " + (enabled() ? "on" : "off") + " | masked server " + (settings.masked ? "yes" : "no")
             + " | lush caves " + (settings.lush ? lush.size() + " known" : "off")
             + " | azalea " + (settings.azalea ? "on" : "off") + " | predictions " + predicted.size()
             + ". Commands: /dripleaf on|off, masked on|off, azalea on|off, lush [on|off], predictions, seed [<seed>|clear], version [<version>|auto], search [<radius>|stop]");
@@ -123,7 +118,6 @@ public final class Finder {
         clearWorld();
         level = next;
         memory.enter(DataKey.of(Compat.serverAddress(mc), Compat.singleplayerWorld(mc)));
-        checkServerType();
         reloadData();
         if (!predicted.isEmpty() && !memory.predictionsAnnounced && mc.player != null) {
             memory.predictionsAnnounced = true;
@@ -135,16 +129,8 @@ public final class Finder {
         }
     }
 
-    void checkServerType() {
-        folia = ServerType.FOLIA.equals(seeds.serverType()[0]);
-    }
-
     String text(BlockPos pos) {
-        return predicted.get(pos).text(folia);
-    }
-
-    long candidates() {
-        return predicted.values().stream().filter(row -> !row.anyOrder()).count();
+        return predicted.get(pos).text();
     }
 
     void reloadData() {
@@ -160,6 +146,12 @@ public final class Finder {
             int[] f = Data.ints(line, 4);
             if (f != null) lush.put(new BlockPos(f[0], f[1], f[2]), f[3]);
         }
+    }
+
+    void resetPredictions() {
+        memory.predictionsChanged();
+        near.clear();
+        reloadData();
     }
 
     public static String connectionKey(Minecraft mc) {
@@ -202,7 +194,7 @@ public final class Finder {
     }
 
     private String whyEmpty(String none, String noneKnown) {
-        if (!settings.enabled) return none + ". The finder is off.";
+        if (!enabled()) return none + ". The finder is off.";
         if (level == null) return none + ". Join a world first.";
         if (!Compat.overworld(level)) return none + ". Only kept for the Overworld.";
         return noneKnown + " for " + memory.key() + " yet. Set World Seed and press Seed Search.";
@@ -230,15 +222,13 @@ public final class Finder {
     }
 
     void tick(Minecraft mc) {
-        if (!settings.enabled) return;
+        if (!enabled()) return;
         if (mc.level == null || mc.player == null) {
             if (level != null) clearWorld();
             return;
         }
         if (mc.level != level) enterWorld(mc, mc.level);
-        if (ticks % 100 == 0) scanned.clear();
         if (ticks++ % 10 != 0) return;
-        checkServerType();
         boolean masked = settings.masked;
         found.removeIf(pos -> {
             LevelChunk chunk = Compat.loadedChunk(level, pos.getX() >> 4, pos.getZ() >> 4);
@@ -249,7 +239,8 @@ public final class Finder {
         for (int dx = -radius; dx <= radius; dx++) {
             for (int dz = -radius; dz <= radius; dz++) {
                 LevelChunk chunk = Compat.loadedChunk(level, cx + dx, cz + dz);
-                if (chunk == null || !scanned.add(chunk)) continue;
+                if (chunk == null) continue;
+                if (!scanned.add(chunk) && Math.floorMod(cx + dx + cz + dz, 10) != ticks / 10 % 10) continue;
                 Splice.scan(chunk, masked, this::lushNear, this::report);
                 if (settings.azalea) Azalea.canopies(level, chunk).forEach(this::azalea);
             }
@@ -259,7 +250,7 @@ public final class Finder {
                 near.remove(pos);
                 return false;
             }
-            Boolean there = Splice.settle(level, pos, near.merge(pos, 10, Integer::sum), this::lushNear);
+            Boolean there = Splice.settle(level, pos, near.merge(pos, 10, Integer::sum), masked, this::lushNear);
             if (there == null) return false;
             if (there) report(pos, level.getBlockState(pos));
             else message("Predicted spliced dripleaf at " + pos.getX() + " " + pos.getY() + " " + pos.getZ() + " is not there");
@@ -296,7 +287,7 @@ public final class Finder {
 
     public void boxes(double camX, double camY, double camZ, BoxSink sink) {
         Minecraft mc = Minecraft.getInstance();
-        if (!settings.enabled || level == null || Compat.hudHidden(mc)) return;
+        if (!enabled() || level == null || Compat.hudHidden(mc)) return;
         double range = (double) DRAW_RANGE * DRAW_RANGE;
         for (BlockPos pos : found) sink.box(new AABB(pos), COLOR);
         if (settings.lush) {

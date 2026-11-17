@@ -2,6 +2,7 @@ package dripleaffinder;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import net.minecraft.client.Minecraft;
 
@@ -14,20 +15,16 @@ final class FinderMenu implements MenuModel {
         settings = finder.settings;
     }
 
-    public boolean enabled() {
-        return finder.enabled();
+    public void follow(BooleanSupplier enabled, Consumer<Boolean> turn) {
+        finder.follow(enabled, turn);
     }
 
-    public void setEnabled(boolean on) {
-        finder.setEnabled(on);
-    }
-
-    public void onEnabledChanged(Consumer<Boolean> listener) {
-        finder.onEnabledChanged(listener);
+    public void turnedOff() {
+        finder.turnedOff();
     }
 
     public boolean masked() {
-        return finder.settings.masked;
+        return settings.masked;
     }
 
     public void setMasked(boolean on) {
@@ -35,7 +32,7 @@ final class FinderMenu implements MenuModel {
     }
 
     public boolean lush() {
-        return finder.settings.lush;
+        return settings.lush;
     }
 
     public void setLush(boolean on) {
@@ -43,7 +40,7 @@ final class FinderMenu implements MenuModel {
     }
 
     public boolean azalea() {
-        return finder.settings.azalea;
+        return settings.azalea;
     }
 
     public void setAzalea(boolean on) {
@@ -136,15 +133,12 @@ final class FinderMenu implements MenuModel {
 
     public String candidates() {
         if (!inWorld()) return "";
-        if (!enabled()) return "Finder off";
-        return candidates(finder.predicted.size(), finder.seeds.serverType()[0], finder.seeds.typedServerType() == null,
-            finder.folia ? finder.candidates() : 0);
+        if (!finder.enabled()) return "Finder off";
+        return candidates(finder.predicted.size(), finder.seeds.serverType()[0], finder.seeds.typedServerType() == null);
     }
 
-    static String candidates(int here, String type, boolean auto, long chance) {
-        String text = here + " here · " + type + (auto ? " (auto)" : "");
-        if (chance == 0) return text;
-        return text + ", " + (chance == here ? Guidance.FOLIA_ODDS + " each" : chance + " at " + Guidance.FOLIA_ODDS);
+    static String candidates(int here, String type, boolean auto) {
+        return here + " here · " + type + (auto ? " (auto)" : "");
     }
 
     public boolean searching() {

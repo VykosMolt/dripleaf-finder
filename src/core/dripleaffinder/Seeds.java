@@ -74,7 +74,7 @@ public final class Seeds {
         } catch (IOException e) {
             Finder.message("Could not set aside the predictions and lush caves of " + from + ": " + e.getMessage());
         }
-        if (key.equals(finder.memory.key())) finder.reloadData();
+        if (key.equals(finder.memory.key())) finder.resetPredictions();
     }
 
     static List<Path> setAside(Path folder, String seed) throws IOException {
@@ -230,7 +230,6 @@ public final class Seeds {
             Finder.message("Could not save the server type: " + e.getMessage());
             return;
         }
-        finder.checkServerType();
         String[] t = serverType();
         Finder.message("Server Type for " + key + ": " + t[0] + " (" + t[1] + ").");
     }

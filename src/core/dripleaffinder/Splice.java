@@ -43,9 +43,9 @@ final class Splice {
 
     static final int SETTLE_TICKS = 200, SETTLE_RANGE = 32;
 
-    static Boolean settle(BlockGetter world, BlockPos pos, int nearTicks, Predicate<BlockPos> lush) {
+    static Boolean settle(BlockGetter world, BlockPos pos, int nearTicks, boolean masked, Predicate<BlockPos> lush) {
         if (nearTicks < SETTLE_TICKS) return null;
-        return spliced(world, pos, world.getBlockState(pos), false, lush);
+        return spliced(world, pos, world.getBlockState(pos), masked, lush);
     }
 
     static boolean covered(BlockGetter world, BlockPos pos) {
