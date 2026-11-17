@@ -6,6 +6,7 @@ import java.util.function.Consumer;
 public interface MenuModel {
     String AUTO = "Auto";
     int MIN_RADIUS = 64, MAX_RADIUS = SeedSearch.MAX_RADIUS, RADIUS_STEP = 64;
+    int DEFAULT_RADIUS = Math.round(SeedSearch.DEFAULT_RADIUS / (float) RADIUS_STEP) * RADIUS_STEP;
 
     boolean enabled();
 
