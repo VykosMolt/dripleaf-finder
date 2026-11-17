@@ -143,11 +143,14 @@ public final class ClientCheck {
         expect("overworld centre", java.util.List.of(SeedSearch.overworld(at, net.minecraft.world.level.Level.OVERWORLD),
                 SeedSearch.overworld(at, net.minecraft.world.level.Level.NETHER), SeedSearch.overworld(at, net.minecraft.world.level.Level.END)),
             java.util.List.of(at, new BlockPos(-800, 70, 200), new BlockPos(0, 70, 0)));
+        expect("unchecked candidates", java.util.List.of(SeedSearch.unchecked("10 of 12 still there after ticking (2 never loaded, not checked)"),
+                SeedSearch.unchecked("12 of 12 still there after ticking"), SeedSearch.unchecked("finding lush caves")),
+            java.util.List.of(2, 0, 0));
         commandLine();
 
         System.out.println("CLIENT CHECK PASSED: 2 azalea trees, trunkless leaves dropped; data rows, box edges, memory, data keys, host names,"
             + " server versions, server types, folia guidance, splice guidance, search memory, brief status, candidates row, set-aside names, set aside,"
-            + " merged predictions, spawn chunks kept, overworld centre, search command line");
+            + " merged predictions, spawn chunks kept, overworld centre, unchecked candidates, search command line");
     }
 
     static void setAside(String name) throws java.io.IOException {

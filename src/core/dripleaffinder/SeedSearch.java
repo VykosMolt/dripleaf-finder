@@ -38,7 +38,7 @@ public final class SeedSearch {
     private final List<BlockPos> missed = new ArrayList<>();
     private String key, pendingKey;
     private BlockPos center;
-    private int radius, ticks;
+    private int radius, ticks, unchecked;
     private boolean together;
     private long startedAt;
 
@@ -119,6 +119,7 @@ public final class SeedSearch {
         leftOut = null;
         spawn = null;
         missed.clear();
+        unchecked = 0;
         Setup mine = new Setup(++generation);
         setup = mine;
         Path gameDir = FabricLoader.getInstance().getGameDir();
@@ -322,6 +323,7 @@ public final class SeedSearch {
                 if (f[1].matches("(finding|scanning|measuring) .*")) run.progress = f[1];
                 else if (f[1].startsWith("decorated ")) run.progress = "decorating " + 100 * Long.parseLong(w[1]) / Math.max(1, Long.parseLong(w[3])) + "%";
                 else if (f[1].contains(" candidates among ")) run.progress = "checking " + w[0] + " candidates";
+                unchecked += unchecked(f[1]);
             }
             case "lush" -> lush.add(String.join("\t", f[1], f[2], f[3], f[4]));
             case "spawn" -> {
@@ -366,17 +368,26 @@ public final class SeedSearch {
         missed.clear();
     }
 
+    static int unchecked(String status) {
+        return status.matches(".* \\(\\d+ never loaded, not checked\\)") ? Integer.parseInt(status.replaceAll(".*\\((\\d+) never loaded.*", "$1")) : 0;
+    }
+
     private void finish(Minecraft mc) {
-        boolean complete = failed.isEmpty() && !runs.isEmpty(), done = runs.stream().anyMatch(run -> run.ok);
+        boolean done = runs.stream().anyMatch(run -> run.ok);
         if (!done && failed.isEmpty()) fail("search", "no search server ran", "No search server ran, so nothing was searched.");
+        List<String> gaps = new ArrayList<>();
+        if (!failed.isEmpty()) gaps.add(String.join(", ", failed.keySet()) + " failed");
+        if (unchecked > 0) gaps.add(unchecked + " unchecked");
+        boolean complete = gaps.isEmpty() && !runs.isEmpty();
         for (SearchRun run : runs) run.deleteWorld();
         runs.clear();
         String saveError = save(complete);
         long both = hits.values().stream().filter(h -> h[1].equals("both")).count(), seconds = (System.currentTimeMillis() - startedAt) / 1000;
         if (done && saveError == null) {
-            Finder.message("Seed search done in " + seconds + " s" + (complete ? "" : " (" + String.join(", ", failed.keySet()) + " failed)") + ": "
+            Finder.message("Seed search done in " + seconds + " s" + (complete ? "" : " (" + String.join("; ", gaps) + ")") + ": "
                 + hits.size() + " spliced top halves (" + both + " in both chunk orders), " + lush.size() + " lush cave tiles; saved for " + key + "."
-                + (leftOut == null ? "" : leftOut));
+                + (leftOut == null ? "" : leftOut) + (unchecked == 0 ? "" : " " + unchecked + " candidates were not checked because their chunks "
+                + "never loaded, so the predictions saved before in this area are kept."));
         }
         failures.forEach(Finder::message);
         if (saveError != null) Finder.message(saveError);
@@ -389,7 +400,7 @@ public final class SeedSearch {
             : " (" + (hits.isEmpty() ? lush.size() + " lush" : hits.size()) + " kept)";
         results.put(key, !done ? brief("Failed: " + failed.values().iterator().next(), STATUS_LENGTH - suffix.length()) + suffix
             : saveError != null ? "Could not save results"
-            : !complete ? "Done, " + String.join(", ", failed.keySet()) + " failed: " + halves + lush.size() + " lush"
+            : !complete ? brief("Done, " + String.join(", ", gaps) + ": " + halves + lush.size() + " lush", STATUS_LENGTH)
             : "Done: " + halves + lush.size() + " lush tiles, " + seconds + " s");
         startPending(mc);
     }
