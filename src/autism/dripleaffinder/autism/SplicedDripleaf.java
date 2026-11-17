@@ -36,6 +36,11 @@ final class SplicedDripleaf extends SimpleModule {
     }
 
     @Override
+    public boolean settingsShareable() {
+        return false;
+    }
+
+    @Override
     public void onEnable() {
         model.setEnabled(true);
     }
