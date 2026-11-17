@@ -96,20 +96,28 @@ class Screen:
                 else:
                     self.phrases.append(list(w))
 
-    def ocr(self, box, k, threshold, psm):
+    def ocr(self, box, k, threshold, psm, *options):
         r, g, b = self.image.split()
         ink = ImageChops.darker(ImageChops.darker(r, g), b).crop(box)
         big = ink.resize((ink.width * k, ink.height * k), Image.LANCZOS).point(lambda v: 0 if v > threshold else 255)
         scratch = self.path.with_suffix(".ocr.png")
         big.save(scratch)
-        out = subprocess.run(["tesseract", str(scratch), "-", "--psm", psm] + (["tsv"] if psm == "11" else []), capture_output=True, text=True).stdout
+        out = subprocess.run(["tesseract", str(scratch), "-", "--psm", psm, *options] + (["tsv"] if psm == "11" else []),
+                             capture_output=True, text=True).stdout
         scratch.unlink()
         return out
 
     def line(self, box):
-        readings = [self.ocr(box, k, threshold, "7").split() for k in (3, 4) for threshold in (90, 110)]
-        readings = [re.sub(r"[^\w./-]", "", r[0]) for r in readings if r]
-        return max(set(readings), key=readings.count) if readings else ""
+        def vote(*options):
+            readings = [self.ocr(box, k, threshold, "7", *options).split() for k in (3, 4, 5) for threshold in (90, 110)]
+            readings = [re.sub(r"[^\w./-]", "", r[0]) for r in readings if r]
+            return max(set(readings), key=readings.count) if readings else ""
+
+        text = vote()
+        return vote("-c", "tessedit_char_whitelist=0123456789.") if re.fullmatch(r"[\d.]+", text) else text
+
+    def ink(self, x, y):
+        return min(self.pixel(x, y)) > INK
 
     def read(self, box=None, k=3, threshold=INK):
         box = box or (0, 0, self.image.width, self.image.height)
@@ -123,11 +131,11 @@ class Screen:
                 words.append([f[11], x0 + x, y0 + y, x0 + x + w, y0 + y + h])
         return words
 
-    def find(self, text):
-        return next((p for p in self.phrases if text in p[0]), None)
+    def find(self, text, strict=True):
+        return next((p for p in self.phrases if (p[0].startswith(text) if strict else text in p[0])), None)
 
-    def label(self, text):
-        p = self.find(text)
+    def label(self, text, strict=True):
+        p = self.find(text, strict)
         if p is None:
             raise Abort(f"no {text!r} on screen ({self.path.name})")
         return p
@@ -173,8 +181,16 @@ class Screen:
             x1 += 1
         return x0, top, x1, bottom
 
+    def placement(self, text):
+        label, toolbar = self.find(text), self.find("Reset", False)
+        if label is None or toolbar is None:
+            return None
+        if label[2] <= toolbar[4] + 21:
+            return "above"
+        return "below" if self.row(label)[3] >= self.image.height - 16 else "visible"
+
     def overflows(self):
-        title, toolbar = self.label(TITLE), self.label("Reset")
+        title, toolbar = self.label(TITLE, False), self.label("Reset", False)
         below = [p for p in self.phrases if p[2] > toolbar[4] + 4 and p[1] > title[1] - 40 and re.search(r"[A-Za-z]{3}", p[0])]
         column = min(p[1] for p in below)
         problems = []
@@ -202,23 +218,46 @@ def click(phrase, settle=4):
     click_at((phrase[1] + phrase[3]) / 2, centre_y(phrase), settle)
 
 
-def view(name, top=False, check_layout=True):
+def scroll(s, amount):
+    title = s.label(TITLE, False)
+    send(f"scroll {(title[1] + title[3]) / 2 / scale:.1f} {(title[4] + 120) / scale:.1f} {amount}", "wait 5")
+
+
+def view(name, rows=(), top=False, check_layout=True):
+    s = opened(name)
+    if rows:
+        for step in range(40):
+            places = [s.placement(r) for r in rows]
+            if all(p == "visible" for p in places):
+                break
+            jump = None in places and step == 0
+            scroll(s, 10 if jump else 1 if "above" in places else -1)
+            last, s = s, shot(f"{name}-scroll")
+            if not jump and last.image.tobytes() == s.image.tobytes():
+                raise Abort(f"cannot scroll {', '.join(rows)} fully into view ({s.path.name})")
+        else:
+            raise Abort(f"cannot scroll {', '.join(rows)} fully into view ({s.path.name})")
+    else:
+        scroll(s, 10 if top else -10)
+    s = shot(name)
+    if check_layout:
+        layouts.append((s.path.name, s.overflows()))
+    return s
+
+
+def opened(name):
     s = shot(name + "-pre")
-    if s.find(TITLE) is None or s.find("Reset") is None:
+    if s.find(TITLE, False) is None or s.find("Reset", False) is None:
         send("close", "wait 2", "open2 autismclient.gui.d.PacketUtil", "wait 20")
         menu = shot(name + "-menu")
-        entry = menu.label("Spliced")
+        entry = menu.label("Spliced", False)
         arrows = sorted((w for w in menu.words if w[0].endswith(">") and abs(centre_y(w) - centre_y(entry)) < 6 and w[1] > entry[3]),
                         key=lambda w: w[1])
         if not arrows:
             raise Abort(f"no > button beside the module in the menu ({menu.path.name})")
         click_at(arrows[0][3] - 2, centre_y(arrows[0]), 10)
         s = shot(name + "-open")
-    title = s.label(TITLE)
-    send(f"scroll {(title[1] + title[3]) / 2 / scale:.1f} {(title[4] + 120) / scale:.1f} {10 if top else -10}", "wait 5")
-    s = shot(name)
-    if check_layout:
-        layouts.append((s.path.name, s.overflows()))
+        s.label(TITLE, False)
     return s
 
 
@@ -244,10 +283,12 @@ def settings():
 
 
 KEY_A, KEY_B = f"127.0.0.1_{PORT_A}", f"127.0.0.1_{PORT_B}"
+with zipfile.ZipFile(ADDON) as jar:
+    HAS_TYPE = any(b"Server Type" in jar.read(n) for n in jar.namelist() if n.startswith("dripleaffinder/autism/"))
 
 
 def edit_seed(text, finish):
-    s = view("seed-edit", check_layout=False)
+    s = view("seed-edit", rows=("World Seed", "Status"), check_layout=False)
     box = s.right_of(s.label("World Seed"))
     if not box:
         raise Abort(f"no World Seed box ({s.path.name})")
@@ -259,11 +300,11 @@ def edit_seed(text, finish):
         send(f"keyp {ESCAPE}", "wait 4")
     else:
         click(s.label("Status"))
-    return view(f"seed-{finish}-{text or 'empty'}")
+    return view(f"seed-{finish}-{text or 'empty'}", rows=("World Seed",))
 
 
 def edit_number(label, value):
-    s = view(f"{label.split()[1].lower()}-edit", check_layout=False)
+    s = view(f"{label.split()[1].lower()}-edit", rows=(label,), check_layout=False)
     boxes = [w for w in s.right_of(s.label(label)) if re.fullmatch(r"\d+", w[0])]
     if not boxes:
         raise Abort(f"no number box beside {label} ({s.path.name})")
@@ -271,39 +312,56 @@ def edit_number(label, value):
     send(f"keyp {END}", *[f"keyp {BACKSPACE}"] * 8, f"type {value}", "wait 2", f"keyp {ENTER}", "wait 4")
 
 
+def items(closed, opened, value, right):
+    x0 = int(value[1]) - 2
+
+    def text(y):
+        return any(opened.ink(x, y) and opened.pixel(x, y) != closed.pixel(x, y) for x in range(x0, x0 + 50))
+
+    lines, y = [], int(value[4]) + 6
+    while y < opened.image.height - 2 and (not lines or y - lines[-1][1] < 20):
+        if text(y):
+            if lines and y - lines[-1][1] <= 3:
+                lines[-1][1] = y
+            else:
+                lines.append([y, y])
+        y += 1
+    return [(opened.line((x0 - 4, top - 4, right - 4, bottom + 5)), [x0, top, x0 + 20, bottom]) for top, bottom in lines if bottom - top >= 5]
+
+
 def choose(label, wanted, name):
-    s = view(f"{name}-closed", check_layout=False)
+    s = view(f"{name}-closed", rows=(label,), check_layout=False)
     value = s.right_of(s.label(label))
     if not value:
         raise Abort(f"no {label} dropdown ({s.path.name})")
     click(value[0])
     opened = shot(f"{name}-open")
-    region = (int(value[0][1]) - 60, int(value[0][4]) + 2, s.row(s.label(label))[2] + 2, min(s.image.height, int(value[0][4]) + 200))
-    before = {(w[0], round(w[1] / 4), round(w[2] / 4)) for w in s.read(region, 4, 110)}
-    new = [w for w in opened.read(region, 4, 110) if (w[0], round(w[1] / 4), round(w[2] / 4)) not in before
-           and w[1] >= value[0][1] - 4 and re.search(r"\w", w[0])]
-    new.sort(key=centre_y)
-    options = []
-    for w in new:
-        if abs(w[1] - value[0][1]) < 6 and not (options and abs(centre_y(options[-1]) - centre_y(w)) < 5):
-            options.append(w)
-    names = [opened.line((int(w[1]) - 6, int(w[2]) - 5, region[2] - 4, int(w[4]) + 5)) for w in options]
-    pick = next((w for w, n in zip(options, names) if wanted(n)), None)
+    options = items(s, opened, value[0], s.row(s.label(label))[2])
+    names = [n for n, _ in options]
+    pick = next((box for n, box in options if wanted(n)), None)
     if pick is not None:
-        click(pick)
+        click([""] + pick)
     else:
         send(f"keyp {ESCAPE}", "wait 4")
     return names, opened
 
 
 def flow_a():
-    top = view("a-window-top", top=True)
-    bottom = view("a-window-bottom")
-    labels = ["Masked Server", "World Seed", "World Version", "Search Radius", "Search Memory", "Status", "Seed Search"]
-    seen = [l for l in labels if top.find(l) or bottom.find(l)]
-    check("a. module window opens", len(seen) == len(labels), f"rows seen: {', '.join(seen)}", bottom)
     global initial_radius
-    initial_radius = bottom.number("Search Radius")
+    labels = ["Masked Server", "World Seed", "World Version"] + ["Server Type"] * HAS_TYPE + ["Search Radius", "Search Memory", "Status", "Seed Search"]
+    s, seen = view("a-window", top=True), set()
+    for _ in range(40):
+        seen |= {l for l in labels if s.placement(l) == "visible"}
+        if initial_radius is None and s.placement("Search Radius") == "visible":
+            initial_radius = s.number("Search Radius")
+        scroll(s, -1)
+        last, s = s, shot("a-window-scroll")
+        if last.image.tobytes() == s.image.tobytes():
+            break
+        layouts.append((s.path.name, s.overflows()))
+    missing = [l for l in labels if l not in seen]
+    check("a. module window opens and every row scrolls fully into view", not missing,
+          f"{len(seen)} of {len(labels)} rows seen" + (f"; missing {', '.join(missing)}" if missing else ""), s)
 
 
 def flow_b():
@@ -320,9 +378,9 @@ def flow_b():
 
 
 def flow_f_noseed():
-    s = view("f-noseed-before")
+    s = view("f-noseed-before", rows=("Status", "Seed Search"))
     click(s.button("Seed Search"))
-    s = view("f-noseed-after")
+    s = view("f-noseed-after", rows=("Status", "Seed Search"))
     status = s.value("Status")
     check("f0. Search with no seed shows the refusal in Status", "No seed" in status, f"status={status!r}", s)
 
@@ -343,9 +401,7 @@ def flow_c():
 
 
 def flow_d():
-    with zipfile.ZipFile(ADDON) as jar:
-        present = any(b"Server Type" in jar.read(n) for n in jar.namelist() if n.startswith("dripleaffinder/autism/"))
-    if not present:
+    if not HAS_TYPE:
         print("d. Server Type: SKIP (not in this jar)")
         return
     names, opened = choose("Server Type", lambda n: n.startswith("Folia"), "d-type")
@@ -356,7 +412,7 @@ def flow_d():
 def flow_e():
     edit_number("Search Radius", 256)
     edit_number("Search Memory", 3)
-    s = view("e-numbers")
+    s = view("e-numbers", rows=("Search Radius", "Search Memory"))
     saved = settings()
     check("e. Search Radius and Search Memory persist", saved.get("radius") == 256 and saved.get("memoryGb") == 3,
           f"json radius={saved.get('radius')} memoryGb={saved.get('memoryGb')}; shown {s.number('Search Radius')} / {s.number('Search Memory')}", s)
@@ -364,12 +420,12 @@ def flow_e():
 
 def flow_f():
     edit_seed("1234567890", "enter")
-    s = view("f-before")
+    s = view("f-before", rows=("Status", "Seed Search"))
     idle = s.value("Status")
     started = time.time()
     click(s.button("Seed Search"))
     for i in range(8):
-        s = view(f"f-running-{i}")
+        s = view(f"f-running-{i}", rows=("Status", "Seed Search"))
         status = s.value("Status")
         if status != idle and not re.search(r"Still asking|Asking", status):
             break
@@ -378,7 +434,7 @@ def flow_f():
     button = s.button("Seed Search")[0]
     check("f2. Stop shows while searching", button == "Stop", f"button={button!r}", s)
     click(s.button("Seed Search"))
-    s = view("f-stopped")
+    s = view("f-stopped", rows=("Status", "Seed Search"))
     status, button = s.value("Status"), s.button("Seed Search")[0]
     check("f3. Stop stops and Search returns", "stopped" in status.lower() and button == "Search", f"status={status!r} button={button!r}", s)
 
@@ -386,9 +442,9 @@ def flow_f():
 def flow_g():
     choose("World Version", lambda n: n != "Auto", "g-version")
     seed, version, kind = read(KEY_A, "seed.txt"), read(KEY_A, "version.txt"), read(KEY_A, "server-type.txt")
-    s = view("g-before")
-    click(s.label("Reset"), 10)
-    s = view("g-after")
+    s = view("g-before", rows=("Search Radius",))
+    click(s.label("Reset", False), 10)
+    s = view("g-after", rows=("Search Radius",))
     radius = settings().get("radius")
     shown = s.number("Search Radius")
     ok = seed is not None and version is not None and read(KEY_A, "seed.txt") == seed and read(KEY_A, "version.txt") == version
@@ -412,9 +468,9 @@ def flow_h():
     else:
         raise Abort("never joined the second server")
     send("wait 160")
-    s = view("h-server-b")
+    s = view("h-server-b", rows=("World Seed",) + ("Server Type",) * HAS_TYPE)
     box = s.value("World Seed")
-    kind = s.value("Server Type") if s.find("Server Type") else "Auto"
+    kind = s.value("Server Type") if HAS_TYPE else "Auto"
     check("h. a different server starts without the seed", read(KEY_B, "seed.txt") is None and "empty" in box and read(KEY_A, "seed.txt") == "1234567890"
           and kind.startswith("Auto"), f"{KEY_B}/seed.txt={read(KEY_B, 'seed.txt')!r} box={box!r} server type={kind!r} "
           f"{KEY_A}/seed.txt={read(KEY_A, 'seed.txt')!r}", s)
