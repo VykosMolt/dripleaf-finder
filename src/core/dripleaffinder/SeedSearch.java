@@ -192,7 +192,7 @@ public final class SeedSearch {
             pendingKey = key;
             Finder.message("It is searched when the running seed search ends.");
         } else {
-            start(mc, DEFAULT_RADIUS, false);
+            start(mc, finder.settings.radius, false);
         }
     }
 
@@ -335,7 +335,7 @@ public final class SeedSearch {
     private void startPending(Minecraft mc) {
         String next = pendingKey;
         pendingKey = null;
-        if (next != null && next.equals(Finder.connectionKey(mc))) start(mc, DEFAULT_RADIUS, false);
+        if (next != null && next.equals(Finder.connectionKey(mc))) start(mc, finder.settings.radius, false);
     }
 
     static List<String> mergeLush(List<String> old, List<String> fresh) {
