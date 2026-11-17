@@ -3,7 +3,6 @@ package dripleaffinder;
 import com.sun.management.OperatingSystemMXBean;
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.function.Consumer;
 import net.minecraft.client.Minecraft;
@@ -78,8 +77,6 @@ final class FinderMenu implements MenuModel {
 
     public List<String> versions() {
         List<String> releases = new ArrayList<>(Searchers.versions());
-        List<String> order = List.copyOf(Versions.RELEASES.keySet());
-        releases.sort(Comparator.comparingInt(order::indexOf).reversed());
         releases.add(0, AUTO);
         return releases;
     }

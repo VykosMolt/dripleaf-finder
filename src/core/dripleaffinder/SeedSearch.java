@@ -68,13 +68,8 @@ public final class SeedSearch {
         }
         String[] gen = finder.seeds.generationVersion();
         String target = gen[0];
-        if (target.startsWith("1.17")) {
-            lastResult = "Lush caves only generate from 1.18 on, so a " + target + " seed has no spliced dripleaf to find.";
-            Finder.message(lastResult);
-            return;
-        }
-        if (!Versions.known(target)) {
-            Finder.message("No seed search for " + target + " (" + gen[1] + "): set the world's version with /dripleaf version <version>.");
+        if (!Searchers.versions().contains(target)) {
+            Finder.message("No seed search for " + target + " (" + gen[1] + "): " + Searchers.supported() + ".");
             return;
         }
         if (Versions.java(target) > Runtime.version().feature()) {

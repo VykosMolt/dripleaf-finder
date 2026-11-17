@@ -15,7 +15,10 @@ import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.Locale;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
@@ -63,11 +66,19 @@ final class Searchers {
     }
 
     static List<String> versions() {
+        Set<String> versions = new HashSet<>(Set.of(Versions.client()));
         try {
-            return resource("searchers/versions.tsv").stream().map(line -> line.split("\t")[0]).toList();
+            for (String line : resource("searchers/versions.tsv")) versions.add(line.split("\t")[0]);
         } catch (IOException e) {
-            return List.of();
         }
+        List<String> order = List.copyOf(Versions.RELEASES.keySet());
+        return versions.stream().sorted(Comparator.comparingInt(order::indexOf).reversed()).toList();
+    }
+
+    static String supported() {
+        List<String> v = versions();
+        String last = v.get(v.size() - 1);
+        return "this build searches " + (v.size() == 1 ? last : String.join(", ", v.subList(0, v.size() - 1)) + " and " + last) + " worlds";
     }
 
     static Path bundled(Path dir, String target) throws IOException {

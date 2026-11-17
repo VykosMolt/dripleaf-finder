@@ -131,8 +131,8 @@ public final class Seeds {
             return;
         }
         if (version != null && version.equalsIgnoreCase("auto")) version = null;
-        if (version != null && !Versions.known(version)) {
-            Finder.message("Unknown version " + version + " (1.17 to 26.2).");
+        if (version != null && !Searchers.versions().contains(version)) {
+            Finder.message("No seed search for " + version + ": " + Searchers.supported() + ".");
             return;
         }
         try {
