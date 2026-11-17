@@ -9,15 +9,14 @@ import net.minecraft.client.Minecraft;
 
 final class FinderMenu implements MenuModel {
     private final Finder finder;
+    private final Settings settings;
     private final int maxMemoryGb;
-    private int radius = Math.round(SeedSearch.DEFAULT_RADIUS / (float) RADIUS_STEP) * RADIUS_STEP;
-    private int memoryGb;
 
     FinderMenu(Finder finder) {
         this.finder = finder;
+        settings = finder.settings;
         long bytes = ((OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean()).getTotalMemorySize();
         maxMemoryGb = Math.max(1, (int) (bytes >> 30) / 2);
-        memoryGb = Math.min(4, maxMemoryGb);
     }
 
     public boolean enabled() {
@@ -89,15 +88,18 @@ final class FinderMenu implements MenuModel {
     }
 
     public int radius() {
-        return radius;
+        return Math.max(MIN_RADIUS, Math.min(MAX_RADIUS, settings.radius));
     }
 
     public void setRadius(int radius) {
-        this.radius = Math.max(MIN_RADIUS, Math.min(MAX_RADIUS, radius));
+        radius = Math.max(MIN_RADIUS, Math.min(MAX_RADIUS, radius));
+        if (settings.radius == radius) return;
+        settings.radius = radius;
+        settings.save();
     }
 
     public int memoryGb() {
-        return memoryGb;
+        return Math.max(1, Math.min(maxMemoryGb, settings.memoryGb));
     }
 
     public int maxMemoryGb() {
@@ -105,7 +107,10 @@ final class FinderMenu implements MenuModel {
     }
 
     public void setMemoryGb(int gb) {
-        memoryGb = Math.max(1, Math.min(maxMemoryGb, gb));
+        gb = Math.max(1, Math.min(maxMemoryGb, gb));
+        if (settings.memoryGb == gb) return;
+        settings.memoryGb = gb;
+        settings.save();
     }
 
     public String status() {
@@ -118,7 +123,7 @@ final class FinderMenu implements MenuModel {
     }
 
     public void search() {
-        finder.search.start(Minecraft.getInstance(), radius);
+        finder.search.start(Minecraft.getInstance(), radius());
     }
 
     public void stop() {

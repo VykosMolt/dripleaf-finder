@@ -3,6 +3,7 @@ package dripleaffinder;
 import com.mojang.blaze3d.platform.InputConstants;
 import java.util.ArrayList;
 import java.util.List;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -89,6 +90,9 @@ final class MenuSmoke {
             case 7 -> {
                 expect(SmokeCompat.screen(mc) == null, "Escape did not close the menu");
                 expect((SEED + MORE).equals(menu.model.seed()), "closing did not save the seed: " + menu.model.seed());
+                Settings saved = Settings.load(FabricLoader.getInstance().getConfigDir().resolve("dripleaf-finder.json"));
+                expect(saved.radius == menu.model.radius() && saved.memoryGb == menu.model.memoryGb(),
+                    "the settings file has radius " + saved.radius + ", memory " + saved.memoryGb + " GB");
             }
             default -> throw new IllegalStateException();
         }
