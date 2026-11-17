@@ -94,8 +94,11 @@ public final class ClientCheck {
                 "top half, cut by a geode; the chunk order it needs is unknown", "top half, asc",
                 "top half, cut by a mineshaft or trial chamber corridor; real in any chunk order"));
         expect("host names", java.util.List.of(DataKey.host("Java.HugoSMP.net:25565"), DataKey.host("hugosmp.net."),
-                DataKey.host(null), DataKey.host(".."), DataKey.host("[::1]:25565")),
-            java.util.List.of("java.hugosmp.net", "hugosmp.net", "local", "unknown", "unknown"));
+                DataKey.host(null), DataKey.host(".."), DataKey.host("[::1]:25565"), DataKey.of("[2001:DB8::1]:25565", null),
+                DataKey.of("[2001:db8::2]:25566", null), DataKey.of("2001:db8::3", null), DataKey.of("майн.рф", null),
+                DataKey.of("МАЙН.РФ:25570", null), DataKey.host("example.com:abc")),
+            java.util.List.of("java.hugosmp.net", "hugosmp.net", "local", "unknown", "[__1]", "[2001_db8__1]", "[2001_db8__2]_25566",
+                "[2001_db8__3]", "xn--80ashg.xn--p1ai", "xn--80ashg.xn--p1ai_25570", "unknown"));
         expect("windows device names", java.util.List.of(DataKey.of("CON", null), DataKey.of("aux.example.net:25601", null), DataKey.of("nul.", null),
                 DataKey.of("com1", null), DataKey.of("lpt9.example.net", null), DataKey.of("com10.net", null), DataKey.of("console.net", null),
                 DataKey.of("example.aux", null), DataKey.of(null, "con")),
