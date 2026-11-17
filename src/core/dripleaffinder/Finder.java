@@ -148,6 +148,12 @@ public final class Finder {
         }
     }
 
+    void resetPredictions() {
+        memory.predictionsChanged();
+        near.clear();
+        reloadData();
+    }
+
     public static String connectionKey(Minecraft mc) {
         return mc.level == null ? null : DataKey.of(Compat.serverAddress(mc), Compat.singleplayerWorld(mc));
     }
@@ -234,7 +240,7 @@ public final class Finder {
             for (int dz = -radius; dz <= radius; dz++) {
                 LevelChunk chunk = Compat.loadedChunk(level, cx + dx, cz + dz);
                 if (chunk == null) continue;
-                if (!scanned.add(chunk) && Math.floorMod(chunk.getPos().x + chunk.getPos().z, 10) != ticks / 10 % 10) continue;
+                if (!scanned.add(chunk) && Math.floorMod(cx + dx + cz + dz, 10) != ticks / 10 % 10) continue;
                 Splice.scan(chunk, masked, this::lushNear, this::report);
                 if (settings.azalea) Azalea.canopies(level, chunk).forEach(this::azalea);
             }

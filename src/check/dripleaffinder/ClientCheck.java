@@ -50,6 +50,12 @@ public final class ClientCheck {
         memory.enter("b");
         boolean other = memory.announced.add(p);
         expect("memory", java.util.List.of(first, again, other, memory.key()), java.util.List.of(true, false, true, "b"));
+        memory.lushPinged.add(p);
+        memory.settled.add(p);
+        memory.predictionsAnnounced = true;
+        memory.predictionsChanged();
+        expect("prediction memory", java.util.List.of(memory.key(), memory.announced.contains(p), memory.lushPinged.isEmpty(),
+                memory.settled.isEmpty(), memory.predictionsAnnounced), java.util.List.of("b", true, true, true, false));
 
         expect("data keys", java.util.List.of(DataKey.of("Play.Example.org:25565", null),
                 DataKey.of(null, "New World (2)"), DataKey.of(null, null), DataKey.of(null, ".."),
