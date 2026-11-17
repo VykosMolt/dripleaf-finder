@@ -17,7 +17,7 @@ final class Ui {
         if (!DripleafClient.autismAddon()) {
             KeyMapping menu = KeyBindingHelper.registerKeyBinding(
                 new KeyMapping("key.dripleaffinder.menu", InputConstants.KEY_RSHIFT, KeyMapping.Category.MISC));
-            MenuModel model = new FinderMenu(finder);
+            MenuModel model = DripleafClient.menu();
             ClientTickEvents.END_CLIENT_TICK.register(mc -> {
                 while (menu.consumeClick()) mc.setScreen(new MenuScreen(model));
             });

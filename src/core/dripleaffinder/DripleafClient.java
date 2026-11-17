@@ -6,10 +6,16 @@ import net.fabricmc.loader.api.FabricLoader;
 
 public final class DripleafClient implements ClientModInitializer {
     private static Finder finder;
+    private static MenuModel menu;
 
     public static synchronized Finder finder() {
         if (finder == null) finder = new Finder(Settings.load(FabricLoader.getInstance().getConfigDir().resolve("dripleaf-finder.json")));
         return finder;
+    }
+
+    public static synchronized MenuModel menu() {
+        if (menu == null) menu = new FinderMenu(finder());
+        return menu;
     }
 
     static boolean autismAddon() {

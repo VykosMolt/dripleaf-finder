@@ -65,6 +65,14 @@ final class Searchers {
         return jar;
     }
 
+    static List<String> versions() {
+        try {
+            return resource("searchers/versions.tsv").stream().map(line -> line.split("\t")[0]).toList();
+        } catch (IOException e) {
+            return List.of();
+        }
+    }
+
     static Path bundled(Path dir, String target) throws IOException {
         String jar = null, sha = null;
         for (String line : resource("searchers/versions.tsv")) {

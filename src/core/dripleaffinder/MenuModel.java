@@ -1,14 +1,17 @@
 package dripleaffinder;
 
 import java.util.List;
+import java.util.function.Consumer;
 
-interface MenuModel {
+public interface MenuModel {
     String AUTO = "Auto";
     int MIN_RADIUS = 64, MAX_RADIUS = SeedSearch.MAX_RADIUS, RADIUS_STEP = 64;
 
     boolean enabled();
 
     void setEnabled(boolean on);
+
+    void onEnabledChanged(Consumer<Boolean> listener);
 
     boolean masked();
 
