@@ -127,7 +127,7 @@ final class SearchRun {
             if (relative.chars().allMatch(c -> c < 128)) return relative;
         } catch (IllegalArgumentException otherDrive) {
         }
-        Path copy = from.resolve("jars").resolve(real.getFileName().toString().replaceAll("[^A-Za-z0-9._+-]", "_"));
+        Path copy = from.resolve("jars").resolve(Searchers.sha1(real) + ".jar");
         Files.createDirectories(copy.getParent());
         Files.copy(real, copy, StandardCopyOption.REPLACE_EXISTING);
         return from.relativize(copy).toString();

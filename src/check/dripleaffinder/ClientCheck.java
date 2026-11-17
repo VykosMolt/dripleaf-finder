@@ -111,6 +111,10 @@ public final class ClientCheck {
             java.util.List.of("java.hugosmp.net", "hugosmp.net", "local", "unknown", "[__1]", "[2001_db8__1]", "[2001_db8__2]_25566",
                 "[2001_db8__3]", "xn--80ashg.xn--p1ai", "xn--80ashg.xn--p1ai_25570", "unknown", "[fe80__1_scope_31]",
                 "[fe80__2_scope_31]_25566", "[fe80__1_scope_65746830]", "[fe80__1_scope_45544830]"));
+        expect("status addresses", java.util.List.of(ServerVersion.address("[::1]:25566").getHost(),
+                ServerVersion.address("[::1]:25566").getPort(), ServerVersion.address("[2001:db8::1]").getPort(),
+                ServerVersion.address("майн.рф:25567").getHost(), ServerVersion.address("майн.рф:25567").getPort()),
+            java.util.List.of("::1", 25566, 25565, "xn--80ashg.xn--p1ai", 25567));
         expect("windows device names", java.util.List.of(DataKey.of("CON", null), DataKey.of("aux.example.net:25601", null), DataKey.of("nul.", null),
                 DataKey.of("com1", null), DataKey.of("lpt9.example.net", null), DataKey.of("com10.net", null), DataKey.of("console.net", null),
                 DataKey.of("example.aux", null), DataKey.of(null, "con")),
@@ -210,14 +214,25 @@ public final class ClientCheck {
         }
         java.util.List<String> command = SearchRun.command(dir, 300, new Searchers.Launch(jars.get(0), jars.subList(1, 3),
             java.util.List.of("/prism/libraries/fabric-loader.jar"), jars.subList(3, 5)));
-        boolean copied = java.nio.file.Files.readString(dir.resolve("jars/_ten_.jar")).equals("jar");
+        String localJar = "jars/" + Searchers.sha1(jars.get(4)) + ".jar";
+        boolean copied = java.nio.file.Files.readString(dir.resolve(localJar)).equals("jar");
+        java.util.List<java.nio.file.Path> renamed = java.util.List.of(user.resolve("种子.jar"), user.resolve("世界.jar"));
+        java.nio.file.Files.writeString(renamed.get(0), "first");
+        java.nio.file.Files.writeString(renamed.get(1), "second");
+        java.util.List<String> collision = SearchRun.command(dir, 300, new Searchers.Launch(jars.get(0), renamed,
+            java.util.List.of("/prism/libraries/fabric-loader.jar"), java.util.List.of()));
+        String[] copies = collision.get(4).substring("-Dfabric.addMods=".length()).split(java.util.regex.Pattern.quote(java.io.File.pathSeparator));
+        expect("renamed search jars", java.util.List.of(copies.length, !copies[0].equals(copies[1]),
+                java.nio.file.Files.readString(dir.resolve(copies[0])), java.nio.file.Files.readString(dir.resolve(copies[1])),
+                java.util.Arrays.stream(copies).allMatch(s -> s.chars().allMatch(c -> c < 128))),
+            java.util.List.of(2, true, "first", "second", true));
         try (java.util.stream.Stream<java.nio.file.Path> all = java.nio.file.Files.walk(root)) {
             for (java.nio.file.Path p : all.sorted(java.util.Comparator.reverseOrder()).toList()) java.nio.file.Files.delete(p);
         }
         expect("search command line", java.util.List.of(command.subList(1, command.size()), copied), java.util.List.of(java.util.List.of(
             "-Xmx1124M", "-XX:+ExitOnOutOfMemoryError", "-Dfabric.gameJarPath=../../cache/1.21.3/server.jar",
             "-Dfabric.addMods=../../cache/searchers/engine.jar:../../../mods/dripleaf.jar", "-Ddripleaffinder.search=search.properties", "-cp",
-            "/prism/libraries/fabric-loader.jar:../../cache/1.21.3/intermediary.jar:jars/_ten_.jar", "net.fabricmc.loader.impl.launch.knot.KnotServer",
+            "/prism/libraries/fabric-loader.jar:../../cache/1.21.3/intermediary.jar:" + localJar, "net.fabricmc.loader.impl.launch.knot.KnotServer",
             "nogui"), true));
     }
 
