@@ -11,7 +11,7 @@ NODE="$HERE/../nodes/$MC"
 prop() { sed -n "s/^$1=//p" "$NODE/gradle.properties"; }
 case "$(prop java)" in 21) RT=delta ;; *) RT=epsilon ;; esac
 JAVA=~/.local/share/PrismLauncher/java/java-runtime-$RT/bin/java
-SERVER_JAR=~/.local/share/gradle/caches/fabric-loom/$MC/minecraft-server.jar
+SERVER_JAR=${SMOKE_SERVER_JAR:-$HOME/.local/share/gradle/caches/fabric-loom/$MC/minecraft-server.jar}
 [ -f "$SERVER_JAR" ] || { echo "SMOKE FAIL $MC $MODE: no server jar (build the node first)"; exit 2; }
 WORK="$HERE/work/$MC-$MODE"
 rm -rf "$WORK" && mkdir -p "$WORK/server" "$HERE/out"
@@ -86,6 +86,7 @@ case "$MODE" in
   planted) SCENARIO="-Ddripleaffinder.smoke.pos=4,101,8 -Ddripleaffinder.smoke.camera=1.5,101,3.5 -Ddripleaffinder.smoke.negative=4,101,40" ;;
   search) SCENARIO="-Ddripleaffinder.smoke.search=$SEED,$RADIUS,$FLAG -Ddripleaffinder.smoke.camera=$CX.5,120,$CZ.5" ;;
   realworld) SCENARIO="-Ddripleaffinder.smoke.realworld=$SEED,$RADIUS,96,$FLAG -Ddripleaffinder.smoke.camera=$CX.5,200,$CZ.5 -Ddripleaffinder.smoke.tp=$WORK/tp.txt" ;;
+  servertype) SCENARIO="-Ddripleaffinder.smoke.servertype=${3:?expected server type} -Ddripleaffinder.smoke.camera=0.5,-60,0.5" ;;
   *) echo "SMOKE FAIL $MC $MODE: unknown scenario"; exit 2 ;;
 esac
 cd "$HERE/.."
@@ -167,7 +168,7 @@ PIXELS=""
 if [ -n "$SHOT" ]; then
   PNG="$HERE/out/$MC-$MODE-$(basename "${SMOKE_MOD:-node}" .jar).png"
   cp "$SHOT" "$PNG"
-  if [ "$MODE" != search ]; then
+  if [ "$MODE" != search ] && [ "$MODE" != servertype ]; then
     PIXELS="$(uv run --quiet --no-project --with pillow python3 "$HERE/green.py" "$PNG")"
     case "$PIXELS" in *"box centred"*) ;; *) PROBLEMS="$PROBLEMS; box: $PIXELS" ;; esac
   fi

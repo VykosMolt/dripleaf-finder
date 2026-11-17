@@ -167,8 +167,9 @@ public final class SeedSearch {
         String phase = current != null ? current.progress : pending != null ? pending.phase : "saving";
         long seconds = (System.currentTimeMillis() - startedAt) / 1000;
         String pass = together || current == null ? "" : " " + (runs.indexOf(current) + 1) + "/2";
+        long found = hits.values().stream().filter(h -> !finder.folia || Guidance.anyOrder(h[2], h[3])).count();
         return "Searching" + pass + ": " + phase + ", " + seconds / 60 + ":" + String.format(Locale.ROOT, "%02d", seconds % 60)
-            + (hits.isEmpty() ? "" : ", " + hits.size() + " found");
+            + (found == 0 ? "" : ", " + found + " found");
     }
 
     static int serversThatFit(long availableMb, int radius) {
@@ -287,7 +288,9 @@ public final class SeedSearch {
                     return;
                 }
                 String guidance = Guidance.text(pos.getX(), pos.getZ(), f[4], first, then);
-                finder.addPrediction(pos, "top half, " + guidance);
+                boolean anyOrder = Guidance.anyOrder(first, then);
+                finder.addPrediction(pos, "top half, " + guidance, anyOrder);
+                if (finder.folia && !anyOrder) return;
                 finder.announce("Spliced small dripleaf top half from the seed at " + pos.getX() + " " + pos.getY() + " " + pos.getZ()
                     + ", " + (int) Math.sqrt(pos.distSqr(mc.player.blockPosition())) + " blocks away: " + guidance);
             }

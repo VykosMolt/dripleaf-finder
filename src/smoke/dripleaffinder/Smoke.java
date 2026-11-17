@@ -26,7 +26,10 @@ public final class Smoke implements ClientModInitializer {
         FabricLoader.getInstance().getModContainer("dripleaf-finder").ifPresent(mod -> System.out.println("SMOKE mod jar: " + mod.getOrigin().getPaths().get(0)));
         double[] camera = Arrays.stream(System.getProperty("dripleaffinder.smoke.camera").split(",")).mapToDouble(Double::parseDouble).toArray();
         String search = System.getProperty("dripleaffinder.smoke.search"), realworld = System.getProperty("dripleaffinder.smoke.realworld");
-        if (realworld != null) {
+        String serverType = System.getProperty("dripleaffinder.smoke.servertype");
+        if (serverType != null) {
+            scenario = new ServerTypeScenario(this, serverType);
+        } else if (realworld != null) {
             scenario = new RealWorldScenario(this, realworld.split(","), camera, Path.of(System.getProperty("dripleaffinder.smoke.tp")));
         } else if (search != null) {
             scenario = new SearchScenario(this, search.split(","), camera);

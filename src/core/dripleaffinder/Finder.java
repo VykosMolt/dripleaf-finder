@@ -37,6 +37,8 @@ public final class Finder {
     final Set<BlockPos> found = new HashSet<>();
     private final Set<LevelChunk> scanned = Collections.newSetFromMap(new WeakHashMap<>());
     final Map<BlockPos, String> predicted = new HashMap<>();
+    private final Set<BlockPos> ordered = new HashSet<>();
+    boolean folia;
     private final Map<BlockPos, Integer> near = new HashMap<>();
     private final Map<BlockPos, Integer> lush = new HashMap<>();
     private final List<AABB> azaleas = new ArrayList<>();
@@ -113,6 +115,7 @@ public final class Finder {
         found.clear();
         scanned.clear();
         predicted.clear();
+        ordered.clear();
         near.clear();
         lush.clear();
         azaleas.clear();
@@ -122,27 +125,49 @@ public final class Finder {
         clearWorld();
         level = next;
         memory.enter(DataKey.of(Compat.serverAddress(mc), Compat.singleplayerWorld(mc)));
+        checkServerType();
         reloadData();
         if (!predicted.isEmpty() && !memory.predictionsAnnounced && mc.player != null) {
             memory.predictionsAnnounced = true;
             BlockPos here = mc.player.blockPosition();
-            message(predicted.size() + " spliced small dripleaf top halves predicted from the seed for " + memory.key() + ":");
-            predicted.keySet().stream().sorted(Comparator.comparingDouble(pos -> pos.distSqr(here))).limit(5).forEach(pos ->
+            List<BlockPos> shown = shown();
+            if (!shown.isEmpty()) message(shown.size() + " spliced small dripleaf top halves predicted from the seed for " + memory.key() + ":");
+            shown.stream().sorted(Comparator.comparingDouble(pos -> pos.distSqr(here))).limit(5).forEach(pos ->
                 message("  " + pos.getX() + " " + pos.getY() + " " + pos.getZ() + " (" + predicted.get(pos) + ", "
                     + (int) Math.sqrt(pos.distSqr(here)) + " blocks away)"));
+            if (shown.size() < predicted.size()) message(hiddenNote());
         }
+    }
+
+    void checkServerType() {
+        folia = ServerType.FOLIA.equals(seeds.serverType()[0]);
+    }
+
+    boolean hidden(BlockPos pos) {
+        return folia && ordered.contains(pos);
+    }
+
+    List<BlockPos> shown() {
+        return predicted.keySet().stream().filter(pos -> !hidden(pos)).toList();
+    }
+
+    long hiddenCount() {
+        return predicted.keySet().stream().filter(this::hidden).count();
+    }
+
+    String hiddenNote() {
+        return ServerType.hiddenNote(hiddenCount(), predicted.size());
     }
 
     void reloadData() {
         predicted.clear();
+        ordered.clear();
         lush.clear();
         if (level == null || !Compat.overworld(level)) return;
         Path folder = DATA.resolve(memory.key());
         for (String line : lines(folder.resolve("predictions.tsv"))) {
             Prediction row = Prediction.parse(line);
-            if (row == null || !row.survived()) continue;
-            String text = row.half() + " half, " + row.why();
-            if (!memory.settled.contains(row.pos())) predicted.put(row.pos(), text);
+            if (row != null && row.survived()) addPrediction(row.pos(), row.half() + " half, " + row.why(), row.anyOrder());
         }
         for (String line : lines(folder.resolve("lush.tsv"))) {
             int[] f = Data.ints(line, 4);
@@ -158,8 +183,11 @@ public final class Finder {
         memory.predictionsAnnounced = true;
     }
 
-    void addPrediction(BlockPos pos, String text) {
-        if (level != null && Compat.overworld(level) && !memory.settled.contains(pos)) predicted.put(pos, text);
+    void addPrediction(BlockPos pos, String text, boolean anyOrder) {
+        if (level == null || !Compat.overworld(level) || memory.settled.contains(pos)) return;
+        predicted.put(pos, text);
+        if (anyOrder) ordered.remove(pos);
+        else ordered.add(pos);
     }
 
     void announceSavedOnReturn(String key) {
@@ -207,12 +235,13 @@ public final class Finder {
     }
 
     public void listNearest() {
-        if (predicted.isEmpty()) {
-            message(whyEmpty("No predicted positions", "No spliced dripleaf predicted"));
+        List<BlockPos> shown = shown();
+        if (shown.isEmpty()) {
+            message(predicted.isEmpty() ? whyEmpty("No predicted positions", "No spliced dripleaf predicted") : hiddenNote());
             return;
         }
         BlockPos here = Minecraft.getInstance().player.blockPosition();
-        predicted.keySet().stream().sorted(Comparator.comparingDouble(pos -> pos.distSqr(here))).limit(5).forEach(pos ->
+        shown.stream().sorted(Comparator.comparingDouble(pos -> pos.distSqr(here))).limit(5).forEach(pos ->
             message("Predicted at " + pos.getX() + " " + pos.getY() + " " + pos.getZ() + " (" + predicted.get(pos)
                 + ", " + (int) Math.sqrt(pos.distSqr(here)) + " blocks away)"));
     }
@@ -226,6 +255,7 @@ public final class Finder {
         if (mc.level != level) enterWorld(mc, mc.level);
         if (ticks % 100 == 0) scanned.clear();
         if (ticks++ % 10 != 0) return;
+        checkServerType();
         boolean masked = settings.masked;
         found.removeIf(pos -> {
             LevelChunk chunk = Compat.loadedChunk(level, pos.getX() >> 4, pos.getZ() >> 4);
@@ -242,7 +272,7 @@ public final class Finder {
             }
         }
         predicted.keySet().removeIf(pos -> {
-            if (pos.distSqr(here) > Splice.SETTLE_RANGE * Splice.SETTLE_RANGE || Compat.loadedChunk(level, pos.getX() >> 4, pos.getZ() >> 4) == null) {
+            if (hidden(pos) || pos.distSqr(here) > Splice.SETTLE_RANGE * Splice.SETTLE_RANGE || Compat.loadedChunk(level, pos.getX() >> 4, pos.getZ() >> 4) == null) {
                 near.remove(pos);
                 return false;
             }
@@ -299,7 +329,7 @@ public final class Finder {
             }
         }
         for (BlockPos pos : predicted.keySet()) {
-            if (found.contains(pos)) continue;
+            if (found.contains(pos) || hidden(pos)) continue;
             if (distSq(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, camX, camY, camZ) > range) continue;
             sink.box(new AABB(pos), PREDICTED_COLOR);
         }

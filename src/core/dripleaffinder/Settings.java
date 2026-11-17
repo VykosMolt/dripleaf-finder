@@ -13,7 +13,7 @@ public final class Settings {
     public boolean masked = false;
     public boolean lush = true;
     public boolean azalea = true;
-    public int radius = Math.round(SeedSearch.DEFAULT_RADIUS / (float) MenuModel.RADIUS_STEP) * MenuModel.RADIUS_STEP;
+    public int radius = MenuModel.DEFAULT_RADIUS;
     public int memoryGb = 4;
     private transient Path file;
 
