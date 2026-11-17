@@ -91,7 +91,7 @@ esac
 cd "$HERE/.."
 ALSOFT_DRIVERS=null ALSA_CONFIG_PATH=/dev/null JAVA_HOME="${JAVA_HOME:-$HOME/.local/share/gradle/jdks/eclipse_adoptium-25-amd64-linux.2}" \
   gamescope --backend headless -W 854 -H 480 -w 854 -h 480 -- ./gradlew -p "$NODE" smokeClient --console=plain \
-    "-Psmoke_jvm=-Xmx1536M -Ddripleaffinder.smoke=$WORK/result.txt $SCENARIO ${PING:-} ${SMOKE_MENU:+-Ddripleaffinder.smoke.menu=1}" "-Psmoke_args=--username DripTest --quickPlayMultiplayer 127.0.0.1:$PORT" \
+    "-Psmoke_jvm=-Xmx1536M -Ddripleaffinder.smoke=$WORK/result.txt $SCENARIO ${PING:-}" "-Psmoke_args=--username DripTest --quickPlayMultiplayer 127.0.0.1:$PORT" \
     ${SMOKE_MOD:+"-Psmoke_mod=$SMOKE_MOD"} ${SMOKE_EXTRA:+"-Psmoke_extra=$SMOKE_EXTRA"} > "$WORK/client.log" 2>&1 &
 pids+=($!)
 client_gone() { ! kill -0 "${pids[1]}" 2>/dev/null || grep -qE 'Incompatible mods found|Could not execute entrypoint' "$WORK/client.log"; }
@@ -153,7 +153,7 @@ CRASH="$(ls -t "$RUN"/crash-reports/*.txt 2>/dev/null | head -1)"
 RESULT="$(cat "$WORK/result.txt" 2>/dev/null || echo "SMOKE FAIL no result (${CRASH:+crash: $(grep -m1 -E 'Exception|Error' "$CRASH" | cut -c1-200); }client.log: $(grep -m1 -E 'requires|Incompatible|Exception|ERROR' "$WORK/client.log" | cut -c1-200))")"
 PROBLEMS=""
 if [ -n "${SMOKE_MOD:-}" ]; then EXPECT="$(unzip -p "$SMOKE_MOD" fabric.mod.json | python3 -c 'import json,sys; print(json.load(sys.stdin)["version"])')"
-else EXPECT="$(prop mod_version)+mc$(prop range_name)"; fi
+else EXPECT="$(prop mod_version)+mc$MC"; fi
 grep -qF -- "- dripleaf-finder $EXPECT" "$LOG" 2>/dev/null || PROBLEMS="$PROBLEMS; loaded $(grep -m1 -oE -- '- dripleaf-finder [^ ]+' "$LOG" 2>/dev/null || echo nothing), not $EXPECT"
 LOADED="$(grep -a -m1 -oP 'SMOKE mod jar: \K.*' "$LOG" 2>/dev/null)"
 [ -z "${SMOKE_MOD:-}" ] || cmp -s "$LOADED" "$SMOKE_MOD" || PROBLEMS="$PROBLEMS; the loaded jar ${LOADED:-?} is not $SMOKE_MOD"
@@ -163,8 +163,6 @@ case "$MODE" in
   realworld) case "$RESULT" in *SPLICED*) grep -qF "[Dripleaf] Spliced small dripleaf top half at " "$LOG" || PROBLEMS="$PROBLEMS; no live chat line" ;; esac ;;
 esac
 SHOT="$(ls -t "$RUN"/screenshots/*.png 2>/dev/null | head -1)"
-[ -n "${SMOKE_MENU:-}" ] && ls "$RUN"/screenshots/*.png 2>/dev/null | sort | head -n -1 | cat -n |
-  while read -r n f; do cp "$f" "$HERE/out/$MC-menu-$n.png"; done
 PIXELS=""
 if [ -n "$SHOT" ]; then
   PNG="$HERE/out/$MC-$MODE-$(basename "${SMOKE_MOD:-node}" .jar).png"

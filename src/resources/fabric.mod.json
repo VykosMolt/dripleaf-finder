@@ -8,10 +8,11 @@
   "entrypoints": {
     "client": ["dripleaffinder.DripleafClient"],
     "main": ["dripleaffinder.Searcher"],
-    "seedcrackerx": ["dripleaffinder.SeedcrackerLink"]${autism_entry}
+    "seedcrackerx": ["dripleaffinder.SeedcrackerLink"],
+    "autism": ["dripleaffinder.autism.AutismFront"]
   },
   "depends": {
-    "minecraft": "${mc_range}",
+    "minecraft": "${mc}",
     "fabricloader": ">=0.15.0",
     "fabric-api-base": "*",
     "java": ">=${java}"

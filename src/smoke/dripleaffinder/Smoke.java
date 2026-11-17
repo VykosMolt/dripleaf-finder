@@ -15,7 +15,6 @@ public final class Smoke implements ClientModInitializer {
     private Path out;
     private String result;
     private Scenario scenario;
-    MenuSmoke menu;
     private int shotAt = -1;
     int ticks, joinedAt = -1;
 
@@ -25,8 +24,7 @@ public final class Smoke implements ClientModInitializer {
         if (file == null) return;
         out = Path.of(file);
         FabricLoader.getInstance().getModContainer("dripleaf-finder").ifPresent(mod -> System.out.println("SMOKE mod jar: " + mod.getOrigin().getPaths().get(0)));
-        if (System.getProperty("dripleaffinder.smoke.menu") != null) menu = new MenuSmoke();
-        double[] camera =Arrays.stream(System.getProperty("dripleaffinder.smoke.camera").split(",")).mapToDouble(Double::parseDouble).toArray();
+        double[] camera = Arrays.stream(System.getProperty("dripleaffinder.smoke.camera").split(",")).mapToDouble(Double::parseDouble).toArray();
         String search = System.getProperty("dripleaffinder.smoke.search"), realworld = System.getProperty("dripleaffinder.smoke.realworld");
         if (realworld != null) {
             scenario = new RealWorldScenario(this, realworld.split(","), camera, Path.of(System.getProperty("dripleaffinder.smoke.tp")));
