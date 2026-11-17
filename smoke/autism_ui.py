@@ -18,6 +18,7 @@ TITLE = "Spliced Dripleaf"
 marks = shots = 0
 scale = 2.0
 initial_radius = None
+initial_memory = None
 results = []
 layouts = []
 
@@ -347,13 +348,15 @@ def choose(label, wanted, name):
 
 
 def flow_a():
-    global initial_radius
-    labels = ["Masked Server", "World Seed", "World Version"] + ["Server Type"] * HAS_TYPE + ["Search Radius", "Search Memory", "Status", "Seed Search"]
+    global initial_radius, initial_memory
+    labels = ["Masked Server", "World Seed", "World Version"] + ["Server Type"] * HAS_TYPE + ["Search Radius", "Search Memory", "Status", "Candidates", "Seed Search"]
     s, seen = view("a-window", top=True), set()
     for _ in range(40):
         seen |= {l for l in labels if s.placement(l) == "visible"}
         if initial_radius is None and s.placement("Search Radius") == "visible":
             initial_radius = s.number("Search Radius")
+        if initial_memory is None and s.placement("Search Memory") == "visible":
+            initial_memory = s.number("Search Memory")
         scroll(s, -1)
         last, s = s, shot("a-window-scroll")
         if last.image.tobytes() == s.image.tobytes():
@@ -442,16 +445,65 @@ def flow_f():
 def flow_g():
     choose("World Version", lambda n: n != "Auto", "g-version")
     seed, version, kind = read(KEY_A, "seed.txt"), read(KEY_A, "version.txt"), read(KEY_A, "server-type.txt")
+    for label in ("Masked Server", "Lush Cave Pings", "Azalea Trees"):
+        s = view("g-toggle-" + label.split()[0].lower(), rows=(label,))
+        row = s.row(s.label(label))
+        click_at(row[2] - 20, centre_y(s.label(label)))
+    changed = settings()
+    check("g0. on/off settings changed before Reset", changed.get("masked") is True and changed.get("lush") is False and changed.get("azalea") is False,
+          f"masked={changed.get('masked')} lush={changed.get('lush')} azalea={changed.get('azalea')}")
     s = view("g-before", rows=("Search Radius",))
     click(s.label("Reset", False), 10)
-    s = view("g-after", rows=("Search Radius",))
-    radius = settings().get("radius")
+    s = view("g-after", rows=("Search Radius", "Search Memory"))
+    saved = settings()
+    radius = saved.get("radius")
     shown = s.number("Search Radius")
     ok = seed is not None and version is not None and read(KEY_A, "seed.txt") == seed and read(KEY_A, "version.txt") == version
     ok = ok and read(KEY_A, "server-type.txt") == kind and str(radius) == initial_radius and shown == initial_radius
-    check("g. Reset keeps seed and version, restores radius", ok,
+    ok = ok and str(saved.get("memoryGb")) == initial_memory and s.number("Search Memory") == initial_memory
+    ok = ok and saved.get("masked") is False and saved.get("lush") is True and saved.get("azalea") is True
+    check("g. Reset keeps seed and version, restores radius, memory and on/off settings", ok,
           f"seed {seed!r}->{read(KEY_A, 'seed.txt')!r} version {version!r}->{read(KEY_A, 'version.txt')!r} "
-          f"type {kind!r}->{read(KEY_A, 'server-type.txt')!r} radius json={radius} shown={shown!r} default={initial_radius!r}", s)
+          f"type {kind!r}->{read(KEY_A, 'server-type.txt')!r} radius json={radius} shown={shown!r} default={initial_radius!r} "
+          f"memory={saved.get('memoryGb')} default={initial_memory!r} masked={saved.get('masked')} lush={saved.get('lush')} azalea={saved.get('azalea')}", s)
+
+
+def flow_i():
+    s = view("i-toggle-before", rows=("Candidates",))
+    if s.find("Disabled"):
+        click(s.label("Disabled"))
+    s = view("i-enabled", rows=("Candidates",))
+    enabled = s.value("Candidates")
+    click(s.label("Enabled"))
+    s = view("i-disabled", rows=("Candidates",))
+    disabled = s.value("Candidates")
+    click(s.label("Disabled"))
+    s = view("i-reenabled", rows=("Candidates",))
+    again = s.value("Candidates")
+    check("i. Candidates follows the module toggle", "here" in enabled and disabled == "Finder off" and again == enabled,
+          f"enabled={enabled!r} disabled={disabled!r} reenabled={again!r}", s)
+
+
+def flow_j():
+    edit_number("Search Radius", 2048)
+    s = view("j-search-before-leaving", rows=("Status", "Seed Search"))
+    click(s.button("Seed Search"))
+    send("close", "leave", "wait 20")
+    for _ in range(30):
+        if " world false " in send():
+            break
+        time.sleep(1)
+    else:
+        raise Abort("never left the server during search")
+    s = view("j-offline", rows=("Status", "Seed Search"))
+    button = s.button("Seed Search")[0]
+    check("j1. Stop remains visible after leaving the server", button == "Stop", f"button={button!r}", s)
+    if button != "Stop":
+        raise Abort("no offline Stop button")
+    click(s.button("Seed Search"))
+    s = view("j-stopped-offline", rows=("Status", "Seed Search"))
+    status, button = s.value("Status"), s.button("Seed Search")[0]
+    check("j2. Stop works outside a world", "stopped" in status.lower() and button == "Search", f"status={status!r} button={button!r}", s)
 
 
 def flow_h():
@@ -488,7 +540,7 @@ def main():
         raise Abort("never joined the server")
     send("wait 160")
     for name, body in [("a", flow_a), ("b", flow_b), ("f0", flow_f_noseed), ("c", flow_c), ("d", flow_d), ("e", flow_e),
-                       ("f1", flow_f), ("g", flow_g), ("h", flow_h)]:
+                       ("f1", flow_f), ("i", flow_i), ("g", flow_g), ("j", flow_j), ("h", flow_h)]:
         flow(name, body)
     bad = [(name, problems) for name, problems in layouts if problems]
     check("a. no text wider than its row", not bad, f"{len(layouts)} window screenshots; " + "; ".join(f"{n}: {', '.join(p)}" for n, p in bad))
