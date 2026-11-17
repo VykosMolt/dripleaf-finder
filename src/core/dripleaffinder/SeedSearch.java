@@ -23,6 +23,7 @@ public final class SeedSearch {
     final Map<BlockPos, String[]> hits = new LinkedHashMap<>();
     private final List<String> lush = new ArrayList<>();
     String lastResult;
+    private String leftOut;
     private static final Object SETUP = new Object();
     private volatile int generation;
     private volatile Setup setup;
@@ -93,6 +94,7 @@ public final class SeedSearch {
         hits.clear();
         lush.clear();
         lastResult = null;
+        leftOut = null;
         missedLive = false;
         Setup mine = new Setup(++generation);
         setup = mine;
@@ -201,6 +203,8 @@ public final class SeedSearch {
                 Finder.message("Seed search: " + f[1]);
             }
             case "lush" -> lush.add(String.join("\t", f[1], f[2], f[3], f[4]));
+            case "spawn" -> leftOut = " Left out: about " + f[3] + " blocks around the world spawn at " + f[1] + " " + f[2]
+                + ", which the search server generates at startup in no fixed order.";
             case "hit" -> {
                 BlockPos pos = new BlockPos(Integer.parseInt(f[1]), Integer.parseInt(f[2]), Integer.parseInt(f[3]));
                 String[] known = hits.get(pos);
@@ -248,7 +252,8 @@ public final class SeedSearch {
         long both = hits.values().stream().filter(h -> h[1].equals("both")).count();
         if (lastResult == null) {
             lastResult = "Seed search done in " + (System.currentTimeMillis() - startedAt) / 1000 + " s: " + hits.size()
-                + " spliced top halves (" + both + " in both chunk orders), " + lush.size() + " lush cave tiles; saved for " + key + ".";
+                + " spliced top halves (" + both + " in both chunk orders), " + lush.size() + " lush cave tiles; saved for " + key + "."
+                + (leftOut == null ? "" : leftOut);
         }
         Finder.message(lastResult);
         boolean here = key.equals(finder.memory.key());
