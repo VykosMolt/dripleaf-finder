@@ -30,7 +30,7 @@ final class Searchers {
     static final Pattern LOADER_JARS = Pattern.compile(
         "(fabric-loader|sponge-mixin|asm|asm-analysis|asm-commons|asm-tree|asm-util|mixinextras-fabric|mixinextras-common)-.*\\.jar");
 
-    record Launch(Path gameJar, List<Path> mods, List<String> classpath) {
+    record Launch(Path gameJar, List<Path> mods, List<String> classpath, List<Path> libraries) {
     }
 
     static Launch prepare(Path cache, String target) throws IOException {
@@ -39,15 +39,15 @@ final class Searchers {
             : bundled(cache.resolve("searchers"), target);
         if (client && FabricLoader.getInstance().getObjectShare().get("fabric-loader:inputGameJars") instanceof List<?> jars
                 && !jars.isEmpty() && jars.get(0) instanceof Path game) {
-            return new Launch(game, List.of(mod, apiBase(cache)), List.of(System.getProperty("java.class.path").split(File.pathSeparator)));
+            return new Launch(game, List.of(mod, apiBase(cache)), List.of(System.getProperty("java.class.path").split(File.pathSeparator)), List.of());
         }
         Path serverJar = serverJar(cache.resolve(target), target);
         List<String> classpath = new ArrayList<>();
         for (String entry : System.getProperty("java.class.path").split(File.pathSeparator)) {
             if (LOADER_JARS.matcher(Path.of(entry).getFileName().toString()).matches()) classpath.add(entry);
         }
-        if (target.startsWith("1.")) classpath.add(intermediary(cache.resolve(target), target).toString());
-        return new Launch(serverJar, List.of(mod, apiBase(cache)), classpath);
+        List<Path> libraries = target.startsWith("1.") ? List.of(intermediary(cache.resolve(target), target)) : List.of();
+        return new Launch(serverJar, List.of(mod, apiBase(cache)), classpath, libraries);
     }
 
     static Path apiBase(Path cache) throws IOException {
