@@ -45,7 +45,7 @@ final class SearchScenario implements Scenario {
             if (!status.equals(lastStatus)) {
                 System.out.println("SMOKE status: " + status);
                 lastStatus = status;
-                phases.add(status.split("[ ,]")[0]);
+                phases.add(status.substring(status.indexOf(": ") + 2).split("[ ,]")[0]);
             }
         }
         if (!smoke.searchDone(finder, arrivedAt)) {
@@ -53,7 +53,7 @@ final class SearchScenario implements Scenario {
             return;
         }
         String last = finder.search.lastResult, saved = saved();
-        boolean ok = last != null && last.startsWith("Seed search done") && !finder.search.hits.isEmpty() && phases.contains("Decorating")
+        boolean ok = last != null && last.startsWith("Done:") && !finder.search.hits.isEmpty() && phases.contains("decorating")
             && finder.search.hits.keySet().stream().allMatch(pos -> saved.contains(pos.getX() + "\t" + pos.getY() + "\t" + pos.getZ() + "\ttop"));
         smoke.shoot(mc, (ok ? "PASS " : "FAIL ") + notes + "status phases " + phases + "; " + last + " Saved: " + saved.replace('\n', '|'));
     }

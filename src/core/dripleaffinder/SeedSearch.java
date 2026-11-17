@@ -26,7 +26,7 @@ public final class SeedSearch {
     final Map<BlockPos, String[]> hits = new LinkedHashMap<>();
     private final List<String> lush = new ArrayList<>();
     String lastResult;
-    private String leftOut;
+    private String leftOut, failure;
     private static final Object SETUP = new Object();
     private volatile int generation;
     private volatile Setup setup;
@@ -64,38 +64,43 @@ public final class SeedSearch {
         }
         String key = Finder.connectionKey(mc), seed = finder.seeds.seed();
         if (mc.player == null || key == null) {
-            refuse("Join a world first.", fromCommand);
+            refuse("Join a world first", "Join a world first.", fromCommand);
             return;
         }
         if (finder.seeds.typedVersion() == null && finder.serverVersion.asking(key)) {
-            refuse("Still asking the server which version it runs; search again in a few seconds.", fromCommand);
+            refuse("Asking the server's version; retry", "Still asking the server which version it runs; search again in a few seconds.",
+                fromCommand);
             return;
         }
         String[] gen = finder.seeds.generationVersion();
         String target = gen[0];
         if (!Searchers.versions().contains(target)) {
-            refuse("No seed search for " + target + " (" + gen[1] + "): " + Searchers.supported() + ". Pick one in World Version.", fromCommand);
+            refuse("No search for " + target + ": set World Version",
+                "No seed search for " + target + " (" + gen[1] + "): " + Searchers.supported() + ". Pick one in World Version.", fromCommand);
             return;
         }
         if (Versions.java(target) > Runtime.version().feature()) {
-            refuse("A " + target + " world needs Java " + Versions.java(target) + " to generate; this game runs on Java "
-                + Runtime.version().feature() + ".", fromCommand);
+            refuse("Needs Java " + Versions.java(target) + " for " + target, "A " + target + " world needs Java " + Versions.java(target)
+                + " to generate; this game runs on Java " + Runtime.version().feature() + ".", fromCommand);
             return;
         }
         if (seed == null) {
-            refuse("No seed: set World Seed first.", fromCommand);
+            refuse("No seed: set World Seed", "No seed: set World Seed first.", fromCommand);
             return;
         }
         radius = Math.max(MenuModel.MIN_RADIUS, Math.min(MAX_RADIUS, radius));
-        long budget = memoryBudgetMb();
-        if (SearchRun.serverMb(radius) > budget) {
+        long available = availableMb();
+        int servers = serversThatFit(available, radius);
+        if (servers == 0) {
             int fits = 0;
-            for (int r = MenuModel.MIN_RADIUS; r <= MAX_RADIUS; r += MenuModel.RADIUS_STEP) if (SearchRun.serverMb(r) <= budget) fits = r;
-            refuse("Not enough memory for radius " + radius + " (" + SearchRun.serverMb(radius) + " MB; Search Memory and free memory allow "
-                + Math.max(0, budget) + " MB). " + (fits > 0 ? "A Search Radius of " + fits + " fits." : "Close other programs first."), fromCommand);
+            for (int r = MenuModel.MIN_RADIUS; r <= MAX_RADIUS; r += MenuModel.RADIUS_STEP) if (serversThatFit(available, r) > 0) fits = r;
+            refuse(fits > 0 ? "Not enough memory: radius ≤ " + fits : "Not enough memory: needs " + (SearchRun.serverMb(MenuModel.MIN_RADIUS) + 1024) + " MB",
+                "Not enough memory for radius " + radius + ": a search server needs " + SearchRun.serverMb(radius) + " MB plus 1024 MB to spare, "
+                    + "and Search Memory and free memory allow " + available + " MB. "
+                    + (fits > 0 ? "A Search Radius of " + fits + " fits." : "Close other programs or raise Search Memory."), fromCommand);
             return;
         }
-        boolean both = 2L * SearchRun.serverMb(radius) <= budget;
+        boolean both = servers == 2;
         this.key = key;
         this.center = mc.player.blockPosition();
         this.radius = radius;
@@ -105,6 +110,7 @@ public final class SeedSearch {
         hits.clear();
         lush.clear();
         lastResult = null;
+        failure = null;
         leftOut = null;
         missedLive = false;
         Setup mine = new Setup(++generation);
@@ -121,7 +127,7 @@ public final class SeedSearch {
                     }
                     SearchRun.deleteFallbacks(gameDir);
                     if (mine.generation != generation) return;
-                    if (!target.equals(Versions.client())) mine.phase = "downloading the " + target + " server";
+                    if (!target.equals(Versions.client())) mine.phase = "downloading " + target;
                     Searchers.Launch launch = Searchers.prepare(gameDir.resolve("dripleaf-finder").resolve("cache"), target);
                     mine.phase = "starting";
                     for (String order : SearchRun.ORDERS) {
@@ -143,9 +149,15 @@ public final class SeedSearch {
         thread.start();
     }
 
-    private void refuse(String why, boolean chat) {
-        lastResult = why;
-        if (chat) Finder.message(why);
+    private void refuse(String status, String detail, boolean chat) {
+        lastResult = status;
+        if (chat) Finder.message(detail);
+    }
+
+    private void fail(String status, String detail) {
+        if (lastResult != null) return;
+        lastResult = status;
+        failure = detail;
     }
 
     public String status() {
@@ -154,20 +166,19 @@ public final class SeedSearch {
         SearchRun current = runs.stream().filter(run -> !run.finished).findFirst().orElse(null);
         String phase = current != null ? current.progress : pending != null ? pending.phase : "saving";
         long seconds = (System.currentTimeMillis() - startedAt) / 1000;
-        StringBuilder text = new StringBuilder(Character.toUpperCase(phase.charAt(0)) + phase.substring(1));
-        if (!together && current != null) text.append(" (pass ").append(runs.indexOf(current) + 1).append(" of 2)");
-        text.append(", ").append(seconds / 60).append(':').append(String.format(Locale.ROOT, "%02d", seconds % 60));
-        if (!hits.isEmpty()) {
-            BlockPos last = hits.keySet().stream().reduce((a, b) -> b).orElseThrow();
-            text.append(", ").append(hits.size()).append(" found, last at ").append(last.getX()).append(' ').append(last.getY()).append(' ')
-                .append(last.getZ());
-        }
-        return text.toString();
+        String pass = together || current == null ? "" : " " + (runs.indexOf(current) + 1) + "/2";
+        return "Searching" + pass + ": " + phase + ", " + seconds / 60 + ":" + String.format(Locale.ROOT, "%02d", seconds % 60)
+            + (hits.isEmpty() ? "" : ", " + hits.size() + " found");
     }
 
-    private long memoryBudgetMb() {
+    static int serversThatFit(long availableMb, int radius) {
+        long server = SearchRun.serverMb(radius);
+        return availableMb >= 2 * server + 1024 ? 2 : availableMb >= server + 1024 ? 1 : 0;
+    }
+
+    private long availableMb() {
         long free = ((OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean()).getFreeMemorySize() >> 20;
-        return Math.min(Math.max(1, finder.settings.memoryGb) * 1024L, free - 1024);
+        return Math.min(Math.max(1, finder.settings.memoryGb) * 1024L, free);
     }
 
     void startOrQueue(Minecraft mc, String key) {
@@ -203,8 +214,8 @@ public final class SeedSearch {
         if (pending != null) kill(pending.launched);
         runs.clear();
         pendingKey = null;
-        lastResult = "Seed search stopped.";
-        Finder.message(lastResult);
+        lastResult = "Stopped";
+        Finder.message("Seed search stopped.");
     }
 
     private void kill(List<SearchRun> stopping) {
@@ -222,7 +233,7 @@ public final class SeedSearch {
                 setup = null;
                 kill(runs);
                 runs.clear();
-                refuse("Seed search could not start: " + pending.error, fromCommand);
+                refuse("Could not start: " + pending.error, "Seed search could not start: " + pending.error, fromCommand);
                 startPending(mc);
                 return;
             }
@@ -236,7 +247,9 @@ public final class SeedSearch {
                 for (String line : run.newLines()) handle(mc, run, line);
                 if (!run.finished) {
                     run.finished = true;
-                    lastResult = "The " + run.order + " search server stopped without a result; its log: " + run.dir.resolve("server.log");
+                    boolean memory = run.process.exitValue() == SearchRun.OUT_OF_MEMORY_EXIT;
+                    fail("Failed: " + (memory ? "out of memory" : run.order + " server stopped"), "The " + run.order + " search server "
+                        + (memory ? "ran out of memory" : "stopped without a result") + "; its log: " + run.dir.resolve("server.log"));
                 }
             }
         }
@@ -279,7 +292,7 @@ public final class SeedSearch {
             }
             case "error" -> {
                 run.finished = true;
-                lastResult = "Seed search failed (" + run.order + "): " + f[1];
+                fail("Failed: " + f[1], "Seed search failed (" + run.order + "): " + f[1]);
             }
             default -> {
             }
@@ -296,15 +309,16 @@ public final class SeedSearch {
             if (!lush.isEmpty()) Files.write(folder.resolve("lush.tsv"), mergeLush(Data.lines(folder.resolve("lush.tsv")), lush));
             Files.write(folder.resolve("predictions.tsv"), mergePredictions(Data.lines(folder.resolve("predictions.tsv")), complete));
         } catch (IOException e) {
-            lastResult = "Could not save the search results: " + e.getMessage();
+            fail("Could not save results", "Could not save the search results: " + e.getMessage());
         }
-        long both = hits.values().stream().filter(h -> h[1].equals("both")).count();
+        long both = hits.values().stream().filter(h -> h[1].equals("both")).count(), seconds = (System.currentTimeMillis() - startedAt) / 1000;
         if (lastResult == null) {
-            lastResult = "Seed search done in " + (System.currentTimeMillis() - startedAt) / 1000 + " s: " + hits.size()
-                + " spliced top halves (" + both + " in both chunk orders), " + lush.size() + " lush cave tiles; saved for " + key + "."
-                + (leftOut == null ? "" : leftOut);
+            lastResult = "Done: " + hits.size() + (hits.size() == 1 ? " half, " : " halves, ") + lush.size() + " lush tiles, " + seconds + " s";
+            Finder.message("Seed search done in " + seconds + " s: " + hits.size() + " spliced top halves (" + both
+                + " in both chunk orders), " + lush.size() + " lush cave tiles; saved for " + key + "." + (leftOut == null ? "" : leftOut));
+        } else {
+            Finder.message(failure);
         }
-        Finder.message(lastResult);
         boolean here = key.equals(finder.memory.key());
         if (here) finder.reloadData();
         if (missedLive) finder.announceSavedOnReturn(key);
