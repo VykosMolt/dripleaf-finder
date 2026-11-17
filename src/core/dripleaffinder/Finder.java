@@ -43,7 +43,6 @@ public final class Finder {
     private ClientLevel level;
     private int ticks;
     private Consumer<Boolean> enabledListener;
-    private boolean settingsOwnedElsewhere;
 
     public final SeedSearch search = new SeedSearch(this);
 
@@ -51,9 +50,8 @@ public final class Finder {
         this.settings = settings;
     }
 
-    public void attachFrontEnd(Consumer<Boolean> enabledListener) {
-        this.enabledListener = enabledListener;
-        this.settingsOwnedElsewhere = true;
+    public void onEnabledChanged(Consumer<Boolean> listener) {
+        enabledListener = listener;
     }
 
     public boolean enabled() {
@@ -76,31 +74,24 @@ public final class Finder {
         setEnabled(!settings.enabled);
     }
 
-    void set(String name, boolean value) {
-        if (settingsOwnedElsewhere) {
-            message("Set " + name + " in the AUTISM module (Spliced Dripleaf Finder); it owns this setting.");
-            return;
-        }
-        apply(name, value);
-        message(name + " " + (value ? "on" : "off"));
+    public void setMasked(boolean on) {
+        if (settings.masked == on) return;
+        settings.masked = on;
+        settings.save();
+        scanned.clear();
     }
 
-    public void apply(String name, boolean value) {
-        boolean before = switch (name) {
-            case "masked" -> settings.masked;
-            case "lush" -> settings.lush;
-            case "azalea" -> settings.azalea;
-            default -> throw new IllegalArgumentException(name);
-        };
-        if (before == value) return;
-        switch (name) {
-            case "masked" -> settings.masked = value;
-            case "lush" -> settings.lush = value;
-            default -> settings.azalea = value;
-        }
+    public void setLush(boolean on) {
+        if (settings.lush == on) return;
+        settings.lush = on;
         settings.save();
-        if (name.equals("azalea") && !value) azaleas.clear();
-        if (name.equals("masked")) scanned.clear();
+    }
+
+    public void setAzalea(boolean on) {
+        if (settings.azalea == on) return;
+        settings.azalea = on;
+        settings.save();
+        if (!on) azaleas.clear();
     }
 
     void status() {

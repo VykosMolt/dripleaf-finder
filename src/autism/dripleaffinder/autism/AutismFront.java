@@ -44,7 +44,7 @@ public final class AutismFront extends SimpleAddon {
             versionField = new Field(version, finder.search::typedVersion, finder.search::setVersion);
             add(new ActionSetting("search", "Seed Search", this::search).buttonLabel("Search").requiresWorld());
             add(new ActionSetting("stopSearch", "Stop Seed Search", finder.search::stop).buttonLabel("Stop"));
-            finder.attachFrontEnd(on -> {
+            finder.onEnabledChanged(on -> {
                 if (isEnabled() != on) setEnabled(on);
             });
             if (finder.enabled() != isEnabled()) finder.setEnabled(isEnabled());
@@ -69,7 +69,9 @@ public final class AutismFront extends SimpleAddon {
         @Override
         public void tick() {
             if (!finder.enabled()) finder.setEnabled(true);
-            for (String name : new String[] {"masked", "lush", "azalea"}) finder.apply(name, getBool(name));
+            finder.setMasked(getBool("masked"));
+            finder.setLush(getBool("lush"));
+            finder.setAzalea(getBool("azalea"));
             String key = Finder.connectionKey(Minecraft.getInstance());
             boolean second = ticks++ % 20 == 0;
             seedField.tick(key, second);
