@@ -6,8 +6,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import net.minecraft.client.Minecraft;
@@ -62,27 +64,39 @@ public final class Seeds {
     private void seedChanged(String key, String before) {
         if (Objects.equals(before, seed(key))) return;
         finder.search.stopFor(key, "Stopped: seed changed");
-        Path saved = Finder.DATA.resolve(key).resolve("predictions.tsv");
+        setAside(key, before, "the previous seed");
+    }
+
+    private void setAside(String key, String seed, String from) {
+        Path folder = Finder.DATA.resolve(key);
         try {
-            if (before != null && Files.exists(saved)) {
-                String name = asideName(before);
-                Path aside = saved.resolveSibling(name + ".tsv");
-                for (int n = 2; Files.exists(aside); n++) aside = saved.resolveSibling(name + "-" + n + ".tsv");
-                Files.move(saved, aside);
-                Finder.message("Predictions from seed " + before + " set aside (" + aside.getFileName() + ").");
-            }
+            if (seed != null && !setAside(folder, seed).isEmpty()) Finder.message("Predictions and lush caves of " + from + " set aside in " + folder + ".");
         } catch (IOException e) {
-            Finder.message("Could not set aside the predictions of seed " + before + ": " + e.getMessage());
+            Finder.message("Could not set aside the predictions and lush caves of " + from + ": " + e.getMessage());
         }
         if (key.equals(finder.memory.key())) finder.reloadData();
     }
 
-    static String asideName(String seed) {
+    static List<Path> setAside(Path folder, String seed) throws IOException {
+        String suffix = "";
+        for (int n = 2; Files.exists(folder.resolve(asideName("predictions", seed) + suffix + ".tsv"))
+                || Files.exists(folder.resolve(asideName("lush", seed) + suffix + ".tsv")); n++) {
+            suffix = "-" + n;
+        }
+        List<Path> moved = new ArrayList<>();
+        for (String file : List.of("predictions", "lush")) {
+            Path saved = folder.resolve(file + ".tsv");
+            if (Files.exists(saved)) moved.add(Files.move(saved, folder.resolve(asideName(file, seed) + suffix + ".tsv")));
+        }
+        return moved;
+    }
+
+    static String asideName(String file, String seed) {
         String text = seed.replaceAll("[^A-Za-z0-9-]", "");
         text = text.substring(0, Math.min(32, text.length()));
         try {
             byte[] sha = MessageDigest.getInstance("SHA-1").digest(seed.getBytes(StandardCharsets.UTF_8));
-            return "predictions-" + (text.isEmpty() ? "" : text + "-") + HexFormat.of().formatHex(sha, 0, 4);
+            return file + "-" + (text.isEmpty() ? "" : text + "-") + HexFormat.of().formatHex(sha, 0, 4);
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
         }
@@ -169,8 +183,10 @@ public final class Seeds {
         }
         if (Objects.equals(version, read(key, "version.txt"))) return;
         try {
+            String before = generationVersion()[0];
             write(key, "version.txt", version);
             finder.search.stopFor(key, "Stopped: version changed");
+            if (!before.equals(generationVersion()[0])) setAside(key, seed(key), "the previous World Version");
             showVersion();
         } catch (IOException e) {
             Finder.message("Could not save the version: " + e.getMessage());

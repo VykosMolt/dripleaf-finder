@@ -120,10 +120,13 @@ public final class ClientCheck {
             FinderMenu.candidates(1234, ServerType.PAPER, false, 0));
         expect("candidates row", java.util.List.of(menuRows.get(0), menuRows.get(1), menuRows.stream().allMatch(row -> row.length() <= SeedSearch.STATUS_LENGTH)),
             java.util.List.of("3 here · Paper/Spigot (auto)", "3 here · Folia (auto), 1 in 2 each", true));
-        java.util.List<String> asides = java.util.stream.Stream.of("1.5", "15", "种子", "семя", "-42").map(Seeds::asideName).toList();
+        java.util.List<String> asides = java.util.stream.Stream.of("1.5", "15", "种子", "семя", "-42").map(seed -> Seeds.asideName("predictions", seed))
+            .toList();
         expect("set-aside names", java.util.List.of(new HashSet<>(asides).size(), asides.get(1).startsWith("predictions-15-"),
-                asides.get(2).matches("predictions-[0-9a-f]{8}"), asides.get(4).matches("predictions--42-[0-9a-f]{8}"), Seeds.asideName("15")),
-            java.util.List.of(5, true, true, true, asides.get(1)));
+                asides.get(2).matches("predictions-[0-9a-f]{8}"), asides.get(4).matches("predictions--42-[0-9a-f]{8}"), Seeds.asideName("predictions", "15"),
+                Seeds.asideName("lush", "15")),
+            java.util.List.of(5, true, true, true, asides.get(1), "lush" + asides.get(1).substring("predictions".length())));
+        setAside(asides.get(1));
         java.util.Map<BlockPos, String[]> found = new java.util.LinkedHashMap<>();
         found.put(new BlockPos(500, 40, 500), new String[] {"air", "asc", "-", "-"});
         java.util.List<String> old = java.util.List.of("10\t40\t10\ttop\tair\tasc\tyes\t1", "300\t40\t300\ttop\tair\tasc\tyes\t1",
@@ -136,8 +139,27 @@ public final class ClientCheck {
         commandLine();
 
         System.out.println("CLIENT CHECK PASSED: 2 azalea trees, trunkless leaves dropped; data rows, box edges, memory, data keys, host names,"
-            + " server versions, server types, folia guidance, splice guidance, search memory, brief status, candidates row, set-aside names,"
+            + " server versions, server types, folia guidance, splice guidance, search memory, brief status, candidates row, set-aside names, set aside,"
             + " merged predictions, search command line");
+    }
+
+    static void setAside(String name) throws java.io.IOException {
+        java.nio.file.Path folder = java.nio.file.Files.createTempDirectory("dripleaf-aside");
+        java.nio.file.Files.writeString(folder.resolve("predictions.tsv"), "new predictions");
+        java.nio.file.Files.writeString(folder.resolve("lush.tsv"), "new lush");
+        java.nio.file.Files.writeString(folder.resolve(name + ".tsv"), "old predictions");
+        java.util.List<String> moved = Seeds.setAside(folder, "15").stream().map(path -> path.getFileName().toString()).toList();
+        java.util.List<String> left = new java.util.ArrayList<>();
+        try (java.util.stream.Stream<java.nio.file.Path> all = java.nio.file.Files.list(folder)) {
+            for (java.nio.file.Path p : all.sorted().toList()) {
+                left.add(p.getFileName() + "=" + java.nio.file.Files.readString(p));
+                java.nio.file.Files.delete(p);
+            }
+        }
+        java.nio.file.Files.delete(folder);
+        String lush = "lush" + name.substring("predictions".length());
+        expect("set aside", java.util.List.of(moved, left), java.util.List.of(java.util.List.of(name + "-2.tsv", lush + "-2.tsv"),
+            java.util.List.of(lush + "-2.tsv=new lush", name + "-2.tsv=new predictions", name + ".tsv=old predictions")));
     }
 
     static void commandLine() throws java.io.IOException {
