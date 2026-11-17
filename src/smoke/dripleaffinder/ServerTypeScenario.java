@@ -25,7 +25,8 @@ final class ServerTypeScenario implements Scenario {
         System.out.println("SMOKE server brand \"" + brand + "\" -> " + auto + " (" + model.serverType() + ")");
         BlockPos at = mc.player.blockPosition();
         try {
-            plant(Finder.DATA.resolve(Finder.connectionKey(mc)).resolve("predictions.tsv"), at.getX() + 64, at.getZ());
+            finder.seeds.setSeed("1234567890");
+            plant(finder.seeds.resultsFolder().resolve("predictions.tsv"), at.getX() + 64, at.getZ());
         } catch (IOException e) {
             smoke.shoot(mc, "FAIL could not write predictions: " + e);
             return;

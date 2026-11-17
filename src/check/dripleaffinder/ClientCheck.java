@@ -172,10 +172,11 @@ public final class ClientCheck {
                 "checking 123 halves, 12:34, 12 found", "1/2 downloading 1.21.11, 0:05"), true));
         commandLine();
         searchCache();
+        generationFolders();
 
         System.out.println("CLIENT CHECK PASSED: 2 azalea trees, trunkless leaves dropped; data rows, box edges, memory, data keys, host names,"
             + " server versions, server types, prediction guidance, splice guidance, search memory, brief status, candidates row, set-aside names, set aside,"
-            + " merged predictions, spawn chunks kept, overworld centre, unchecked candidates, search status, search command line, search cache");
+            + " merged predictions, spawn chunks kept, overworld centre, unchecked candidates, search status, search command line, search cache, generation folders");
     }
 
     static void setAside(String name) throws java.io.IOException {
@@ -247,6 +248,42 @@ public final class ClientCheck {
                 expect("changed search jar " + jar.getFileName(), java.util.List.of(changed.equals(stamp), java.nio.file.Files.exists(cached)),
                     java.util.List.of(false, false));
                 stamp = changed;
+            }
+        } finally {
+            try (java.util.stream.Stream<java.nio.file.Path> all = java.nio.file.Files.walk(root)) {
+                for (java.nio.file.Path path : all.sorted(java.util.Comparator.reverseOrder()).toList()) java.nio.file.Files.delete(path);
+            }
+        }
+    }
+
+    static void generationFolders() throws java.io.IOException {
+        java.nio.file.Path root = java.nio.file.Files.createTempDirectory("dripleaf-generations"), server = root.resolve("server");
+        String seed = "private seed/with unicode 种子";
+        java.nio.file.Path current = Seeds.resultsFolder(server, seed, "26.2");
+        java.nio.file.Path older = Seeds.resultsFolder(server, seed, "1.18");
+        java.nio.file.Path otherSeed = Seeds.resultsFolder(server, "another seed", "26.2");
+        java.nio.file.Path otherServer = Seeds.resultsFolder(root.resolve("other-server"), seed, "26.2");
+        java.util.List<java.nio.file.Path> folders = java.util.List.of(current, older, otherSeed, otherServer);
+        try {
+            expect("generation folder identities", java.util.List.of(new HashSet<>(folders).size(), current.equals(Seeds.resultsFolder(server, seed, "26.2")),
+                    current.startsWith(server.resolve("generations")), current.getParent().getFileName().toString().matches("[a-f0-9]{32}"),
+                    current.getFileName().toString(), current.toString().contains(seed)),
+                java.util.List.of(4, true, true, true, "26.2", false));
+            expect("generation folder validation", java.util.Arrays.asList(Seeds.resultsFolder(server, null, "26.2"),
+                    Seeds.resultsFolder(server, " ", "26.2"), Seeds.resultsFolder(server, seed, null),
+                    Seeds.resultsFolder(server, seed, "../26.2"), Seeds.resultsFolder(server, seed, "1.16.5"),
+                    Seeds.resultsFolder(null, seed, "26.2")), java.util.Collections.nCopies(6, null));
+            for (int i = 0; i < folders.size(); i++) {
+                java.nio.file.Files.createDirectories(folders.get(i));
+                java.nio.file.Files.writeString(folders.get(i).resolve("predictions.tsv"), "predictions " + i);
+                java.nio.file.Files.writeString(folders.get(i).resolve("lush.tsv"), "lush " + i);
+            }
+            java.nio.file.Files.writeString(server.resolve("predictions.tsv"), "legacy predictions");
+            java.nio.file.Files.writeString(server.resolve("lush.tsv"), "legacy lush");
+            expect("legacy generation isolation", Seeds.setAside(server, seed).size(), 2);
+            for (int i = 0; i < folders.size(); i++) {
+                expect("stored generation " + i, java.util.List.of(java.nio.file.Files.readString(folders.get(i).resolve("predictions.tsv")),
+                        java.nio.file.Files.readString(folders.get(i).resolve("lush.tsv"))), java.util.List.of("predictions " + i, "lush " + i));
             }
         } finally {
             try (java.util.stream.Stream<java.nio.file.Path> all = java.nio.file.Files.walk(root)) {

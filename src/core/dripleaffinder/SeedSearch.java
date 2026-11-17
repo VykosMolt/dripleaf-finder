@@ -12,6 +12,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Stream;
 import net.fabricmc.loader.api.FabricLoader;
@@ -30,13 +31,15 @@ public final class SeedSearch {
     private final Map<String, String> failed = new LinkedHashMap<>();
     private final List<String> failures = new ArrayList<>();
     final Map<String, String> results = new HashMap<>();
+    private final Map<String, Path> resultFolders = new HashMap<>();
     private String leftOut;
     private int[] spawn;
     private static final Object SETUP = new Object();
     private volatile int generation;
     private volatile Setup setup;
     private final List<BlockPos> missed = new ArrayList<>();
-    private String key, pendingKey;
+    private String key, pendingKey, targetVersion;
+    private Path folder;
     private BlockPos center;
     private int radius, ticks, unchecked;
     private boolean together;
@@ -84,6 +87,11 @@ public final class SeedSearch {
                 "No seed search for " + target + " (" + gen[1] + "): " + Searchers.supported() + ". Pick one in World Version.", chat);
             return;
         }
+        if (target.equals("1.17") || target.equals("1.17.1")) {
+            refuse(key, "No natural lush caves in " + target, "Ordinary " + target
+                + " worlds do not generate lush caves, so there are no natural spliced dripleaf candidates to predict.", chat);
+            return;
+        }
         if (Versions.java(target) > Runtime.version().feature()) {
             refuse(key, "Needs Java " + Versions.java(target) + " for " + target, "A " + target + " world needs Java " + Versions.java(target)
                 + " to generate; this game runs on Java " + Runtime.version().feature() + ".", chat);
@@ -107,6 +115,8 @@ public final class SeedSearch {
         }
         boolean both = servers == 2;
         this.key = key;
+        this.targetVersion = target;
+        this.folder = Seeds.resultsFolder(Finder.DATA.resolve(key), seed, target);
         this.center = overworld(mc.player.blockPosition(), mc.level.dimension());
         this.radius = radius;
         this.together = both;
@@ -114,6 +124,7 @@ public final class SeedSearch {
         hits.clear();
         lush.clear();
         results.remove(key);
+        resultFolders.remove(key);
         failed.clear();
         failures.clear();
         leftOut = null;
@@ -169,8 +180,18 @@ public final class SeedSearch {
     }
 
     private void refuse(String key, String status, String detail, boolean chat) {
-        results.put(key, brief(status, STATUS_LENGTH));
+        result(key, brief(status, STATUS_LENGTH), null);
         if (chat) Finder.message(detail);
+    }
+
+    private void result(String key, String status, Path folder) {
+        results.put(key, status);
+        if (folder == null) resultFolders.remove(key);
+        else resultFolders.put(key, folder);
+    }
+
+    void metadataChanged(String key) {
+        if (!resultFolders.containsKey(key)) results.remove(key);
     }
 
     private void fail(String order, String why, String detail) {
@@ -180,7 +201,9 @@ public final class SeedSearch {
 
     String lastResult() {
         String here = Finder.connectionKey(Minecraft.getInstance());
-        return results.get(here == null ? key : here);
+        String server = here == null ? key : here;
+        Path source = resultFolders.get(server);
+        return here != null && source != null && !source.equals(finder.seeds.resultsFolder()) ? null : results.get(server);
     }
 
     public String status() {
@@ -192,6 +215,7 @@ public final class SeedSearch {
         SearchRun current = runs.stream().filter(run -> !run.finished).findFirst().orElse(null);
         int index = current != null ? runs.indexOf(current) : runs.size(), passes = SearchRun.ORDERS.size();
         String phase = current != null ? current.progress : pending != null && index < passes ? pending.phase : "saving";
+        if (!Objects.equals(folder, finder.seeds.resultsFolder())) phase = targetVersion + " " + phase;
         long seconds = (System.currentTimeMillis() - startedAt) / 1000;
         String pass = together || index >= passes ? "" : (index + 1) + "/" + passes + " ";
         return progress(pass + phase, seconds, hits.size());
@@ -269,10 +293,11 @@ public final class SeedSearch {
         pendingKey = null;
         String saveError = hits.isEmpty() && lush.isEmpty() ? null : save(false);
         if (saveError != null) Finder.message(saveError);
-        refuse(key, "Stopped", "Seed search stopped." + (hits.isEmpty() || saveError != null ? ""
-            : " The " + hits.size() + " spliced top halves found so far are saved."), fromCommand);
+        result(key, "Stopped", folder);
+        if (fromCommand) Finder.message("Seed search stopped." + (hits.isEmpty() || saveError != null ? ""
+            : " The " + hits.size() + " spliced top halves found so far are saved."));
         if (dropped != null) {
-            results.put(dropped, "Queued search dropped: search stopped");
+            result(dropped, "Queued search dropped: search stopped", null);
             Finder.message("The seed search queued for " + dropped + " was dropped: the running search was stopped. Press Seed Search there to run it.");
         }
     }
@@ -280,7 +305,7 @@ public final class SeedSearch {
     void stopFor(String key, String status) {
         if (!searching(key)) return;
         stop(false);
-        results.put(key, status);
+        result(key, status, folder);
     }
 
     private void kill(List<SearchRun> stopping) {
@@ -302,6 +327,7 @@ public final class SeedSearch {
                 if (runs.isEmpty()) {
                     String error = pending.error == null ? "no search server started" : pending.error;
                     refuse(key, "Could not start: " + error, "Seed search could not start: " + error, true);
+                    if (folder != null) resultFolders.put(key, folder);
                     startPending(mc);
                     return;
                 }
@@ -367,13 +393,14 @@ public final class SeedSearch {
     }
 
     private void announceMissed(Minecraft mc) {
-        if (mc.player == null || !key.equals(Finder.connectionKey(mc))) return;
+        if (mc.player == null || !key.equals(Finder.connectionKey(mc)) || folder == null || !folder.equals(finder.seeds.resultsFolder())) return;
         BlockPos here = overworld(mc.player.blockPosition(), mc.level.dimension());
         for (BlockPos pos : missed) {
             String[] h = hits.get(pos);
             finder.addPrediction(new Prediction(pos, "top", h[0], null, true, h[2], h[3]));
             finder.announce("Spliced small dripleaf top half from the seed at " + pos.getX() + " " + pos.getY() + " " + pos.getZ() + ", "
-                + (int) Finder.flatDistance(pos, here) + " blocks away: " + Guidance.text(pos.getX(), pos.getZ(), h[0], h[2], h[3]));
+                + (int) Finder.flatDistance(pos, here) + " blocks away (" + targetVersion + " generation): "
+                + Guidance.text(pos.getX(), pos.getZ(), h[0], h[2], h[3]));
         }
         missed.clear();
     }
@@ -395,7 +422,8 @@ public final class SeedSearch {
         long both = hits.values().stream().filter(h -> h[1].equals("both")).count(), seconds = (System.currentTimeMillis() - startedAt) / 1000;
         if (done && saveError == null) {
             Finder.message("Seed search done in " + seconds + " s" + (complete ? "" : " (" + String.join("; ", gaps) + ")") + ": "
-                + hits.size() + " spliced top halves (" + both + " in both chunk orders), " + lush.size() + " lush cave tiles; saved for " + key + "."
+                + hits.size() + " spliced top halves (" + both + " in both chunk orders), " + lush.size() + " lush cave tiles; saved for " + key
+                + " (" + targetVersion + " generation)."
                 + (leftOut == null ? "" : leftOut) + (unchecked == 0 ? "" : " " + unchecked + " candidates were not checked because their chunks "
                 + "never loaded, so the predictions saved before in this area are kept."));
         }
@@ -408,15 +436,15 @@ public final class SeedSearch {
         }
         String halves = hits.size() + (hits.size() == 1 ? " half, " : " halves, "), suffix = !kept ? ""
             : " (" + (hits.isEmpty() ? lush.size() + " lush" : hits.size()) + " kept)";
-        results.put(key, !done ? brief("Failed: " + failed.values().iterator().next(), STATUS_LENGTH - suffix.length()) + suffix
+        result(key, !done ? brief("Failed: " + failed.values().iterator().next(), STATUS_LENGTH - suffix.length()) + suffix
             : saveError != null ? "Could not save results"
             : !complete ? brief("Done, " + String.join(", ", gaps) + ": " + halves + lush.size() + " lush", STATUS_LENGTH)
-            : brief("Done: " + halves + lush.size() + " lush tiles, " + seconds + " s", STATUS_LENGTH));
+            : brief("Done: " + halves + lush.size() + " lush tiles, " + seconds + " s", STATUS_LENGTH), folder);
         startPending(mc);
     }
 
     private String save(boolean replaceArea) {
-        Path folder = Finder.DATA.resolve(key);
+        if (folder == null) return "Could not save results: no generation selected";
         try {
             Files.createDirectories(folder);
             if (!lush.isEmpty()) Files.write(folder.resolve("lush.tsv"), mergeLush(Data.lines(folder.resolve("lush.tsv")), lush));
@@ -425,10 +453,10 @@ public final class SeedSearch {
         } catch (IOException e) {
             return "Could not save the search results: " + e.getMessage();
         }
-        boolean here = key.equals(finder.memory.key());
+        boolean here = key.equals(finder.memory.key()) && folder.equals(finder.seeds.resultsFolder());
         if (here) finder.reloadData();
         announceMissed(Minecraft.getInstance());
-        if (!missed.isEmpty()) finder.announceSavedOnReturn(key);
+        if (!missed.isEmpty() && here) finder.announceSavedOnReturn(folder);
         else if (here) finder.markPredictionsAnnounced();
         return null;
     }
@@ -440,7 +468,7 @@ public final class SeedSearch {
         if (next.equals(Finder.connectionKey(mc))) {
             start(mc, finder.settings.radius, true);
         } else {
-            results.put(next, "Queued search dropped: you left");
+            result(next, "Queued search dropped: you left", null);
             Finder.message("The seed search queued for " + next + " was dropped: you left that server. Press Seed Search there to run it.");
         }
     }

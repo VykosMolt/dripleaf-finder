@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.function.BooleanSupplier;
@@ -43,6 +44,7 @@ public final class Finder {
     private final List<AABB> azaleas = new ArrayList<>();
     final Memory memory = new Memory();
     private ClientLevel level;
+    private Path loadedFolder;
     private int ticks;
     private BooleanSupplier enabled;
     private Consumer<Boolean> turn;
@@ -119,10 +121,15 @@ public final class Finder {
         level = next;
         memory.enter(DataKey.of(Compat.serverAddress(mc), Compat.singleplayerWorld(mc)));
         reloadData();
+        announcePredictions(mc);
+    }
+
+    private void announcePredictions(Minecraft mc) {
         if (!predicted.isEmpty() && !memory.predictionsAnnounced && mc.player != null) {
             memory.predictionsAnnounced = true;
             BlockPos here = mc.player.blockPosition();
-            message(predicted.size() + " spliced small dripleaf top halves predicted from the seed for " + memory.key() + ":");
+            message(predicted.size() + " spliced small dripleaf top halves predicted from the seed for " + memory.key() + " ("
+                + seeds.generationVersion()[0] + " generation):");
             predicted.keySet().stream().sorted(Comparator.comparingDouble(pos -> pos.distSqr(here))).limit(5).forEach(pos ->
                 message("  " + pos.getX() + " " + pos.getY() + " " + pos.getZ() + " (" + text(pos) + ", "
                     + (int) Math.sqrt(pos.distSqr(here)) + " blocks away)"));
@@ -134,10 +141,15 @@ public final class Finder {
     }
 
     void reloadData() {
+        Path folder = seeds.resultsFolder();
+        if (!Objects.equals(folder, loadedFolder)) {
+            memory.predictionsChanged();
+            near.clear();
+        }
+        loadedFolder = folder;
         predicted.clear();
         lush.clear();
-        if (level == null || !Compat.overworld(level)) return;
-        Path folder = DATA.resolve(memory.key());
+        if (level == null || !Compat.overworld(level) || folder == null) return;
         for (String line : lines(folder.resolve("predictions.tsv"))) {
             Prediction row = Prediction.parse(line);
             if (row != null && row.survived()) addPrediction(row);
@@ -152,6 +164,7 @@ public final class Finder {
         memory.predictionsChanged();
         near.clear();
         reloadData();
+        announcePredictions(Minecraft.getInstance());
     }
 
     public static String connectionKey(Minecraft mc) {
@@ -166,8 +179,8 @@ public final class Finder {
         if (level != null && Compat.overworld(level) && !memory.settled.contains(row.pos())) predicted.put(row.pos(), row);
     }
 
-    void announceSavedOnReturn(String key) {
-        if (key.equals(memory.key())) memory.predictionsAnnounced = false;
+    void announceSavedOnReturn(Path folder) {
+        if (Objects.equals(folder, loadedFolder)) memory.predictionsAnnounced = false;
     }
 
     void announce(String text) {
@@ -229,6 +242,7 @@ public final class Finder {
         }
         if (mc.level != level) enterWorld(mc, mc.level);
         if (ticks++ % 10 != 0) return;
+        if (!Objects.equals(loadedFolder, seeds.resultsFolder())) resetPredictions();
         boolean masked = settings.masked;
         found.removeIf(pos -> {
             LevelChunk chunk = Compat.loadedChunk(level, pos.getX() >> 4, pos.getZ() >> 4);

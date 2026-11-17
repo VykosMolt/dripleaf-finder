@@ -76,6 +76,21 @@ public final class Seeds {
         return typed != null ? typed : read(key, "seedcracker.txt");
     }
 
+    Path resultsFolder() {
+        String key = key();
+        return key == null ? null : resultsFolder(Finder.DATA.resolve(key), seed(key), generationVersion()[0]);
+    }
+
+    static Path resultsFolder(Path server, String seed, String version) {
+        if (server == null || seed == null || seed.isBlank() || !Versions.known(version)) return null;
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(seed.getBytes(StandardCharsets.UTF_8));
+            return server.resolve("generations").resolve(HexFormat.of().formatHex(digest, 0, 16)).resolve(version);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
     private void change(String key, String name, String value, boolean changed, String from) throws IOException {
         if (changed || name.equals("version.txt")) finder.search.stopFor(key, "Stopped: " + (name.equals("version.txt") ? "version" : "seed") + " changed");
         Path folder = Finder.DATA.resolve(key);
@@ -88,7 +103,10 @@ public final class Seeds {
             throw e;
         }
         if (!moved.isEmpty()) Finder.message("Predictions and lush caves of " + from + " set aside in " + folder + ".");
-        if (changed && key.equals(finder.memory.key())) finder.resetPredictions();
+        if (changed) {
+            finder.search.metadataChanged(key);
+            if (key.equals(finder.memory.key())) finder.resetPredictions();
+        }
     }
 
     static List<Path> setAside(Path folder, String seed) throws IOException {
