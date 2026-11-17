@@ -117,8 +117,7 @@ final class FinderMenu implements MenuModel {
     }
 
     public String status() {
-        if (searching()) return "Searching...";
-        return finder.search.lastResult == null ? "No search yet" : finder.search.lastResult;
+        return finder.search.status();
     }
 
     public boolean searching() {
@@ -126,7 +125,7 @@ final class FinderMenu implements MenuModel {
     }
 
     public void search() {
-        finder.search.start(Minecraft.getInstance(), radius());
+        finder.search.start(Minecraft.getInstance(), radius(), false);
     }
 
     public void stop() {

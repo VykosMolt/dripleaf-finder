@@ -67,6 +67,7 @@ public final class Searcher implements ModInitializer {
             int radius = Integer.parseInt(spec.getProperty("radius"));
             ServerLevel level = server.overworld();
             long started = System.currentTimeMillis();
+            out.line("status", "finding lush caves");
             Set<Long> lush = lushChunks(level, x, z, radius);
             out.line("status", lush.size() + " lush cave chunks within " + radius + " blocks");
             BlockPos spawn = SearchCompat.spawn(level);
@@ -171,6 +172,7 @@ public final class Searcher implements ModInitializer {
         Comparator<Long> order = Comparator.<Long>comparingInt(Searcher::x).thenComparingInt(Searcher::z);
         decorate.sort(descending ? order.reversed() : order);
         Map<Long, Long> placedBy = new HashMap<>(), removedBy = new HashMap<>();
+        out.line("status", "decorated 0 of " + decorate.size() + " chunks");
         for (int from = 0; from < decorate.size(); from += BATCH) {
             List<Long> batch = decorate.subList(from, Math.min(from + BATCH, decorate.size()));
             Set<Long> near = dilate(new HashSet<>(batch), 1);

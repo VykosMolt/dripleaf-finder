@@ -25,6 +25,7 @@ final class SearchRun {
     final Path dir;
     final Process process;
     boolean finished, ok;
+    String progress = "starting";
     private long read;
 
     private SearchRun(String order, Path dir, Process process) {

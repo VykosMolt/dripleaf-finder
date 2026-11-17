@@ -71,7 +71,7 @@ final class RealWorldScenario implements Scenario {
         if (done && finder.search.hits.isEmpty() && !widened && radius < 1500) {
             widened = true;
             finder.search.lastResult = null;
-            finder.search.start(mc, 1500);
+            finder.search.start(mc, 1500, false);
             return;
         }
         if (!done || finder.search.hits.isEmpty()) {
