@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientPacketListener;
 
 public final class Seeds {
     private final Finder finder;
@@ -165,5 +166,43 @@ public final class Seeds {
     void showVersion() {
         String[] v = generationVersion();
         Finder.message("Seed searches use " + v[0] + " world generation (" + v[1] + ").");
+    }
+
+    static String brand() {
+        ClientPacketListener connection = Minecraft.getInstance().getConnection();
+        return connection == null ? null : connection.serverBrand();
+    }
+
+    String[] serverType() {
+        String typed = typedServerType(), brand = brand();
+        if (typed != null) return new String[] {typed, "chosen"};
+        return new String[] {ServerType.fromBrand(brand), brand == null ? "no brand announced" : "brand \"" + brand + "\""};
+    }
+
+    public String typedServerType() {
+        return read(key(), "server-type.txt");
+    }
+
+    public void setServerType(String type) {
+        String key = key();
+        if (key == null) {
+            Finder.message("Join a world first: the server type is kept per server.");
+            return;
+        }
+        if (type != null && !ServerType.TYPES.contains(type)) {
+            Finder.message("No server type " + type + ": " + String.join(", ", ServerType.TYPES) + ".");
+            return;
+        }
+        if (Objects.equals(type, read(key, "server-type.txt"))) return;
+        try {
+            write(key, "server-type.txt", type);
+        } catch (IOException e) {
+            Finder.message("Could not save the server type: " + e.getMessage());
+            return;
+        }
+        finder.checkServerType();
+        String[] t = serverType();
+        String note = finder.hiddenNote();
+        Finder.message("Server Type for " + key + ": " + t[0] + " (" + t[1] + ")." + (note.isEmpty() ? "" : " " + note));
     }
 }

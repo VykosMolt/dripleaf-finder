@@ -41,6 +41,12 @@ public interface MenuModel {
 
     void setVersion(String version);
 
+    List<String> serverTypes();
+
+    String serverType();
+
+    void setServerType(String type);
+
     int radius();
 
     void setRadius(int radius);

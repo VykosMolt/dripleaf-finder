@@ -90,6 +90,21 @@ final class FinderMenu implements MenuModel {
         finder.seeds.setVersion(AUTO.equals(version) ? null : version);
     }
 
+    public List<String> serverTypes() {
+        List<String> types = new ArrayList<>(ServerType.TYPES);
+        types.add(0, AUTO);
+        return types;
+    }
+
+    public String serverType() {
+        String typed = finder.seeds.typedServerType();
+        return typed == null ? AUTO : typed;
+    }
+
+    public void setServerType(String type) {
+        finder.seeds.setServerType(AUTO.equals(type) ? null : type);
+    }
+
     public int radius() {
         return Math.max(MIN_RADIUS, Math.min(MAX_RADIUS, settings.radius));
     }
@@ -117,7 +132,12 @@ final class FinderMenu implements MenuModel {
     }
 
     public String status() {
-        return finder.search.status();
+        String text = finder.search.status();
+        if (!inWorld()) return text;
+        String[] type = finder.seeds.serverType();
+        if (!type[1].equals("chosen")) text += " | Auto: " + type[0] + ", " + type[1];
+        String note = finder.hiddenNote();
+        return note.isEmpty() ? text : text + " | " + note;
     }
 
     public boolean searching() {

@@ -24,6 +24,8 @@ final class SplicedDripleaf extends SimpleModule {
         add(new StringSetting("seed", "World Seed", "").description("Wins over SeedcrackerX. Enter saves.").requiresWorld().keepOnReset());
         add(new ChoiceSetting("version", "World Version", MenuModel.AUTO, model.versions())
             .description("Auto: the version the server reports.").requiresWorld().keepOnReset());
+        add(new ChoiceSetting("serverType", "Server Type", MenuModel.AUTO, model.serverTypes())
+            .description("Auto: from the server's brand.").requiresWorld().keepOnReset());
         add(new IntSetting("radius", "Search Radius", MenuModel.MAX_RADIUS / 4, MenuModel.MIN_RADIUS, MenuModel.MAX_RADIUS, MenuModel.RADIUS_STEP)
             .unit("blocks"));
         add(new IntSetting("memory", "Search Memory", Math.min(4, model.maxMemoryGb()), 1, model.maxMemoryGb(), 1).unit("GB"));
@@ -56,6 +58,7 @@ final class SplicedDripleaf extends SimpleModule {
             case "azalea" -> String.valueOf(model.azalea());
             case "seed" -> model.inWorld() && model.seed() != null ? model.seed() : "";
             case "version" -> model.version();
+            case "serverType" -> model.serverType();
             case "radius" -> String.valueOf(model.radius());
             case "memory" -> String.valueOf(model.memoryGb());
             case "status" -> model.status();
@@ -74,6 +77,9 @@ final class SplicedDripleaf extends SimpleModule {
             }
             case "version" -> {
                 if (model.inWorld()) model.setVersion(value);
+            }
+            case "serverType" -> {
+                if (model.inWorld()) model.setServerType(value);
             }
             case "radius" -> model.setRadius(Integer.parseInt(value));
             case "memory" -> model.setMemoryGb(Integer.parseInt(value));

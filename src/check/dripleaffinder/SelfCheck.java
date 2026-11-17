@@ -141,12 +141,24 @@ public final class SelfCheck {
             Versions.fromStatus("Paper 1.21.4", 9999), Versions.fromStatus("Velocity 1.7.2-1.21.4", 769),
             Versions.fromStatus("BungeeCord 1.8.x-1.21.x", 774)),
             java.util.Arrays.asList("1.21.4", "1.20.1", null, "1.21.1", "1.21.3", "26.2", null, "1.21.4", null, null));
+        expect("server types", java.util.stream.Stream.of("Paper", "Folia", "Paper (Velocity)", "DonutFolia", "vanilla", null)
+                .map(ServerType::fromBrand).toList(),
+            java.util.List.of("Paper/Spigot", "Folia", "Paper/Spigot", "Folia", "Paper/Spigot", "Paper/Spigot"));
+        java.util.List<Prediction> rows = java.util.stream.Stream.of("100\t40\t200\ttop\tair\tboth\tyes\t300\t6,12\t6,12",
+            "116\t40\t200\ttop\tair\tasc\tyes\t300\t7,12\t8,12", "132\t40\t200\ttop\tair\tasc\tyes\t300\t-\t-",
+            "148\t40\t200\ttop\tair\tasc\tyes\t300", "164\t40\t200\ttop\tcave_air\tdesc\tyes\t300\t10,12\t10,12")
+            .map(Prediction::parse).toList();
+        java.util.List<Integer> anyOrder = rows.stream().filter(Prediction::anyOrder).map(row -> row.pos().getX()).toList();
+        expect("folia filtering", java.util.List.of(rows.size(), anyOrder, ServerType.hiddenNote(rows.size() - anyOrder.size(), rows.size()),
+                ServerType.hiddenNote(1, 2), ServerType.hiddenNote(0, 5)),
+            java.util.List.of(5, java.util.List.of(100, 164), "Folia: 3 of 5 predictions depend on chunk order and are hidden.",
+                "Folia: 1 of 2 predictions depends on chunk order and is hidden.", ""));
         expect("host names", java.util.List.of(DataKey.host("Java.HugoSMP.net:25565"), DataKey.host("hugosmp.net."),
                 DataKey.host(null), DataKey.host(".."), DataKey.host("[::1]:25565")),
             java.util.List.of("java.hugosmp.net", "hugosmp.net", "local", "unknown", "unknown"));
 
         System.out.println("SELF-CHECK PASSED: masked server " + masked.size() + " / plain server " + plain.size()
             + " spliced top halves; whole plants, lone bottoms, big dripleaf, stone/deepslate/ore below, open sky, outside lush caves ignored;"
-            + " 2 azalea trees, trunkless leaves dropped; settle, data rows, box edges, memory, data keys, host names, server versions, splice guidance");
+            + " 2 azalea trees, trunkless leaves dropped; settle, data rows, box edges, memory, data keys, host names, server versions, server types, folia filtering, splice guidance");
     }
 }
