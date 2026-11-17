@@ -22,7 +22,8 @@ final class DataKey {
         int colon = host.lastIndexOf(':');
         if (colon > 0 && host.indexOf(':') == colon && host.substring(colon + 1).matches("\\d+")) host = host.substring(0, colon);
         while (host.endsWith(".")) host = host.substring(0, host.length() - 1);
-        return host.matches("[a-z0-9._\\-]+") && !host.matches("\\.+") ? host : "unknown";
+        if (!host.matches("[a-z0-9._\\-]+") || host.matches("\\.+")) return "unknown";
+        return host.matches("(con|prn|aux|nul|com[1-9]|lpt[1-9])(\\..*)?") ? "_" + host : host;
     }
 
     private DataKey() {

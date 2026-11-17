@@ -11,7 +11,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
 
 public final class ClientCheck {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws java.io.IOException {
         SelfCheck.main(args);
 
         for (int x = 2; x <= 4; x++) for (int y = 100; y <= 101; y++) for (int z = 2; z <= 4; z++) {
@@ -98,6 +98,11 @@ public final class ClientCheck {
         expect("host names", java.util.List.of(DataKey.host("Java.HugoSMP.net:25565"), DataKey.host("hugosmp.net."),
                 DataKey.host(null), DataKey.host(".."), DataKey.host("[::1]:25565")),
             java.util.List.of("java.hugosmp.net", "hugosmp.net", "local", "unknown", "unknown"));
+        expect("windows device names", java.util.List.of(DataKey.of("CON", null), DataKey.of("aux.example.net:25601", null), DataKey.of("nul.", null),
+                DataKey.of("com1", null), DataKey.of("lpt9.example.net", null), DataKey.of("com10.net", null), DataKey.of("console.net", null),
+                DataKey.of("example.aux", null), DataKey.of(null, "con")),
+            java.util.List.of("_con", "_aux.example.net_25601", "_nul", "_com1", "_lpt9.example.net", "com10.net", "console.net", "example.aux",
+                "local-con"));
         long gib = 1L << 30;
         expect("search memory", java.util.Arrays.asList(Settings.memoryGb(null, 32 * gib), Settings.memoryGb(null, 15 * gib + gib / 2),
                 Settings.memoryGb(null, 8 * gib), Settings.memoryGb(null, 4 * gib), Settings.memoryGb(null, 2 * gib), Settings.memoryGb(12, 8 * gib),
@@ -128,8 +133,33 @@ public final class ClientCheck {
         expect("merged predictions", java.util.List.of(merged.apply(new int[] {0, 0, 64}, true), merged.apply(null, true), merged.apply(null, false)),
             java.util.List.of(java.util.List.of("10asc", "5000asc", "500asc"), java.util.List.of("5000asc", "500asc"),
                 java.util.List.of("10asc", "300asc", "5000asc", "500asc")));
+        commandLine();
 
         System.out.println("CLIENT CHECK PASSED: 2 azalea trees, trunkless leaves dropped; data rows, box edges, memory, data keys, host names,"
-            + " server versions, server types, folia guidance, splice guidance, search memory");
+            + " server versions, server types, folia guidance, splice guidance, search memory, brief status, candidates row, set-aside names,"
+            + " merged predictions, search command line");
+    }
+
+    static void commandLine() throws java.io.IOException {
+        java.nio.file.Path root = java.nio.file.Files.createTempDirectory("dripleaf-check"), user = root.resolve("Mačak");
+        java.nio.file.Path game = user.resolve("mc"), dir = game.resolve("dripleaf-finder/search/asc"), cache = game.resolve("dripleaf-finder/cache");
+        java.nio.file.Files.createDirectories(dir);
+        java.util.List<java.nio.file.Path> jars = java.util.stream.Stream.of(cache.resolve("1.21.3/server.jar"), cache.resolve("searchers/engine.jar"),
+            game.resolve("mods/dripleaf.jar"), cache.resolve("1.21.3/intermediary.jar"), user.resolve("knihovny/čtení.jar")).toList();
+        for (java.nio.file.Path jar : jars) {
+            java.nio.file.Files.createDirectories(jar.getParent());
+            java.nio.file.Files.writeString(jar, "jar");
+        }
+        java.util.List<String> command = SearchRun.command(dir, 300, new Searchers.Launch(jars.get(0), jars.subList(1, 3),
+            java.util.List.of("/prism/libraries/fabric-loader.jar"), jars.subList(3, 5)));
+        boolean copied = java.nio.file.Files.readString(dir.resolve("jars/_ten_.jar")).equals("jar");
+        try (java.util.stream.Stream<java.nio.file.Path> all = java.nio.file.Files.walk(root)) {
+            for (java.nio.file.Path p : all.sorted(java.util.Comparator.reverseOrder()).toList()) java.nio.file.Files.delete(p);
+        }
+        expect("search command line", java.util.List.of(command.subList(1, command.size()), copied), java.util.List.of(java.util.List.of(
+            "-Xmx1124M", "-XX:+ExitOnOutOfMemoryError", "-Dfabric.gameJarPath=../../cache/1.21.3/server.jar",
+            "-Dfabric.addMods=../../cache/searchers/engine.jar:../../../mods/dripleaf.jar", "-Ddripleaffinder.search=search.properties", "-cp",
+            "/prism/libraries/fabric-loader.jar:../../cache/1.21.3/intermediary.jar:jars/_ten_.jar", "net.fabricmc.loader.impl.launch.knot.KnotServer",
+            "nogui"), true));
     }
 }

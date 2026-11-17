@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -79,14 +80,32 @@ final class SearchRun {
             spec.store(out, null);
         }
         Files.writeString(dir.resolve("results.tsv"), "");
-        List<String> command = List.of(ProcessHandle.current().info().command().orElse("java"), "-Xmx" + heapMb(radius) + "M",
-            "-XX:+ExitOnOutOfMemoryError", "-Dfabric.gameJarPath=" + launch.gameJar(),
-            "-Dfabric.addMods=" + String.join(File.pathSeparator, launch.mods().stream().map(Path::toString).toList()),
-            "-Ddripleaffinder.search=" + dir.resolve("search.properties"), "-cp", String.join(File.pathSeparator, launch.classpath()),
-            "net.fabricmc.loader.impl.launch.knot.KnotServer", "nogui");
-        Process process = new ProcessBuilder(command).directory(dir.toFile()).redirectErrorStream(true)
+        Process process = new ProcessBuilder(command(dir, radius, launch)).directory(dir.toFile()).redirectErrorStream(true)
             .redirectOutput(dir.resolve("server.log").toFile()).start();
         return new SearchRun(order, dir, process);
+    }
+
+    static List<String> command(Path dir, int radius, Searchers.Launch launch) throws IOException {
+        List<String> mods = new ArrayList<>(), classpath = new ArrayList<>(launch.classpath());
+        for (Path mod : launch.mods()) mods.add(local(dir, mod));
+        for (Path library : launch.libraries()) classpath.add(local(dir, library));
+        return List.of(ProcessHandle.current().info().command().orElse("java"), "-Xmx" + heapMb(radius) + "M", "-XX:+ExitOnOutOfMemoryError",
+            "-Dfabric.gameJarPath=" + local(dir, launch.gameJar()), "-Dfabric.addMods=" + String.join(File.pathSeparator, mods),
+            "-Ddripleaffinder.search=search.properties", "-cp", String.join(File.pathSeparator, classpath),
+            "net.fabricmc.loader.impl.launch.knot.KnotServer", "nogui");
+    }
+
+    private static String local(Path dir, Path jar) throws IOException {
+        Path from = dir.toRealPath(), real = jar.toRealPath();
+        try {
+            String relative = from.relativize(real).toString();
+            if (relative.chars().allMatch(c -> c < 128)) return relative;
+        } catch (IllegalArgumentException otherDrive) {
+        }
+        Path copy = from.resolve("jars").resolve(real.getFileName().toString().replaceAll("[^A-Za-z0-9._+-]", "_"));
+        Files.createDirectories(copy.getParent());
+        Files.copy(real, copy, StandardCopyOption.REPLACE_EXISTING);
+        return from.relativize(copy).toString();
     }
 
     static void deleteFallbacks(Path gameDir) {

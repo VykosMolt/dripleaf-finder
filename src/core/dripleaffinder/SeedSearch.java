@@ -150,7 +150,7 @@ public final class SeedSearch {
                         while (!both && mine.generation == generation && run.process.isAlive()) Thread.sleep(500);
                         previous = both ? null : run;
                     }
-                } catch (Exception e) {
+                } catch (Throwable e) {
                     mine.error = e.toString();
                 } finally {
                     mine.complete = true;
@@ -184,9 +184,10 @@ public final class SeedSearch {
             return last == null ? "No search yet" : last;
         }
         SearchRun current = runs.stream().filter(run -> !run.finished).findFirst().orElse(null);
-        String phase = current != null ? current.progress : pending != null ? pending.phase : "saving";
+        int index = current != null ? runs.indexOf(current) : runs.size(), passes = SearchRun.ORDERS.size();
+        String phase = current != null ? current.progress : pending != null && index < passes ? pending.phase : "saving";
         long seconds = (System.currentTimeMillis() - startedAt) / 1000;
-        String pass = together || current == null ? "" : " " + (runs.indexOf(current) + 1) + "/2";
+        String pass = together || index >= passes ? "" : " " + (index + 1) + "/" + passes;
         return "Searching" + pass + ": " + phase + ", " + seconds / 60 + ":" + String.format(Locale.ROOT, "%02d", seconds % 60)
             + (hits.isEmpty() ? "" : ", " + hits.size() + " found");
     }
@@ -246,7 +247,16 @@ public final class SeedSearch {
         if (pending != null) kill(pending.launched);
         runs.clear();
         pendingKey = null;
-        refuse(key, "Stopped", "Seed search stopped.", fromCommand);
+        String saveError = hits.isEmpty() && lush.isEmpty() ? null : save(false);
+        if (saveError != null) Finder.message(saveError);
+        refuse(key, "Stopped", "Seed search stopped." + (hits.isEmpty() || saveError != null ? ""
+            : " The " + hits.size() + " spliced top halves found so far are saved."), fromCommand);
+    }
+
+    void stopFor(String key, String status) {
+        if (!searching(key)) return;
+        stop(false);
+        results.put(key, status);
     }
 
     private void kill(List<SearchRun> stopping) {
@@ -264,8 +274,9 @@ public final class SeedSearch {
             for (SearchRun run : pending.launched) if (!runs.contains(run)) runs.add(run);
             if (complete) {
                 setup = null;
-                if (pending.error != null && runs.isEmpty()) {
-                    refuse(key, "Could not start: " + pending.error, "Seed search could not start: " + pending.error, true);
+                if (runs.isEmpty()) {
+                    String error = pending.error == null ? "no search server started" : pending.error;
+                    refuse(key, "Could not start: " + error, "Seed search could not start: " + error, true);
                     startPending(mc);
                     return;
                 }
@@ -337,19 +348,11 @@ public final class SeedSearch {
     }
 
     private void finish(Minecraft mc) {
-        boolean complete = failed.isEmpty(), done = runs.stream().anyMatch(run -> run.ok);
+        boolean complete = failed.isEmpty() && !runs.isEmpty(), done = runs.stream().anyMatch(run -> run.ok);
+        if (!done && failed.isEmpty()) fail("search", "no search server ran", "No search server ran, so nothing was searched.");
         for (SearchRun run : runs) run.deleteWorld();
         runs.clear();
-        Path folder = Finder.DATA.resolve(key);
-        String saveError = null;
-        try {
-            Files.createDirectories(folder);
-            if (!lush.isEmpty()) Files.write(folder.resolve("lush.tsv"), mergeLush(Data.lines(folder.resolve("lush.tsv")), lush));
-            Files.write(folder.resolve("predictions.tsv"), mergePredictions(Data.lines(folder.resolve("predictions.tsv")), hits, center, radius, spawn,
-                complete));
-        } catch (IOException e) {
-            saveError = "Could not save the search results: " + e.getMessage();
-        }
+        String saveError = save(complete);
         long both = hits.values().stream().filter(h -> h[1].equals("both")).count(), seconds = (System.currentTimeMillis() - startedAt) / 1000;
         if (done && saveError == null) {
             Finder.message("Seed search done in " + seconds + " s" + (complete ? "" : " (" + String.join(", ", failed.keySet()) + " failed)") + ": "
@@ -358,22 +361,47 @@ public final class SeedSearch {
         }
         failures.forEach(Finder::message);
         if (saveError != null) Finder.message(saveError);
-        String halves = hits.size() + (hits.size() == 1 ? " half, " : " halves, ");
-        results.put(key, !done ? brief("Failed: " + failed.values().iterator().next(), STATUS_LENGTH)
+        boolean kept = !done && saveError == null && (!hits.isEmpty() || !lush.isEmpty());
+        if (kept) {
+            Finder.message("Kept what it found before that: " + hits.size() + " spliced top halves, " + lush.size() + " lush cave tiles; saved for "
+                + key + ".");
+        }
+        String halves = hits.size() + (hits.size() == 1 ? " half, " : " halves, "), suffix = !kept ? ""
+            : " (" + (hits.isEmpty() ? lush.size() + " lush" : hits.size()) + " kept)";
+        results.put(key, !done ? brief("Failed: " + failed.values().iterator().next(), STATUS_LENGTH - suffix.length()) + suffix
             : saveError != null ? "Could not save results"
             : !complete ? "Done, " + String.join(", ", failed.keySet()) + " failed: " + halves + lush.size() + " lush"
             : "Done: " + halves + lush.size() + " lush tiles, " + seconds + " s");
+        startPending(mc);
+    }
+
+    private String save(boolean replaceArea) {
+        Path folder = Finder.DATA.resolve(key);
+        try {
+            Files.createDirectories(folder);
+            if (!lush.isEmpty()) Files.write(folder.resolve("lush.tsv"), mergeLush(Data.lines(folder.resolve("lush.tsv")), lush));
+            Files.write(folder.resolve("predictions.tsv"), mergePredictions(Data.lines(folder.resolve("predictions.tsv")), hits, center, radius, spawn,
+                replaceArea));
+        } catch (IOException e) {
+            return "Could not save the search results: " + e.getMessage();
+        }
         boolean here = key.equals(finder.memory.key());
         if (here) finder.reloadData();
         if (missedLive) finder.announceSavedOnReturn(key);
         else if (here) finder.markPredictionsAnnounced();
-        startPending(mc);
+        return null;
     }
 
     private void startPending(Minecraft mc) {
         String next = pendingKey;
         pendingKey = null;
-        if (next != null && next.equals(Finder.connectionKey(mc))) start(mc, finder.settings.radius, true);
+        if (next == null) return;
+        if (next.equals(Finder.connectionKey(mc))) {
+            start(mc, finder.settings.radius, true);
+        } else {
+            results.put(next, "Queued search dropped: you left");
+            Finder.message("The seed search queued for " + next + " was dropped: you left that server. Press Seed Search there to run it.");
+        }
     }
 
     static List<String> mergeLush(List<String> old, List<String> fresh) {
