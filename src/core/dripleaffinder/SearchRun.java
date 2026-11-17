@@ -60,7 +60,8 @@ final class SearchRun {
         for (String[] kv : new String[][] {{"online-mode", "false"}, {"server-ip", "127.0.0.1"}, {"server-port", "0"},
                 {"enable-status", "false"}, {"enable-query", "false"}, {"enable-rcon", "false"}, {"max-tick-time", "-1"},
                 {"pause-when-empty-seconds", "-1"}, {"view-distance", "2"}, {"simulation-distance", "2"}, {"spawn-protection", "0"},
-                {"sync-chunk-writes", "false"}, {"spawn-monsters", "false"}, {"spawn-animals", "false"}, {"white-list", "true"}}) {
+                {"sync-chunk-writes", "false"}, {"region-file-compression", "lz4"}, {"spawn-monsters", "false"}, {"spawn-animals", "false"},
+                {"white-list", "true"}}) {
             server.setProperty(kv[0], kv[1]);
         }
         try (Writer out = Files.newBufferedWriter(dir.resolve("server.properties"), StandardCharsets.UTF_8)) {
