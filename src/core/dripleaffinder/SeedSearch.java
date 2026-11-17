@@ -179,7 +179,8 @@ public final class SeedSearch {
     }
 
     String lastResult() {
-        return results.get(Finder.connectionKey(Minecraft.getInstance()));
+        String here = Finder.connectionKey(Minecraft.getInstance());
+        return results.get(here == null ? key : here);
     }
 
     public String status() {
