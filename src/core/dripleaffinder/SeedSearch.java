@@ -25,8 +25,10 @@ public final class SeedSearch {
     private final List<SearchRun> runs = new CopyOnWriteArrayList<>(), killed = new CopyOnWriteArrayList<>();
     final Map<BlockPos, String[]> hits = new LinkedHashMap<>();
     private final List<String> lush = new ArrayList<>();
+    private final Map<String, String> failed = new LinkedHashMap<>();
+    private final List<String> failures = new ArrayList<>();
     String lastResult;
-    private String leftOut, failure;
+    private String leftOut;
     private static final Object SETUP = new Object();
     private volatile int generation;
     private volatile Setup setup;
@@ -41,7 +43,7 @@ public final class SeedSearch {
         final int generation;
         final List<SearchRun> launched = new CopyOnWriteArrayList<>();
         volatile boolean complete;
-        volatile String error, phase = "starting";
+        volatile String error, unstarted, phase = "starting";
 
         Setup(int generation) {
             this.generation = generation;
@@ -110,7 +112,8 @@ public final class SeedSearch {
         hits.clear();
         lush.clear();
         lastResult = null;
-        failure = null;
+        failed.clear();
+        failures.clear();
         leftOut = null;
         missedLive = false;
         Setup mine = new Setup(++generation);
@@ -130,16 +133,24 @@ public final class SeedSearch {
                     if (!target.equals(Versions.client())) mine.phase = "downloading " + target;
                     Searchers.Launch launch = Searchers.prepare(gameDir.resolve("dripleaf-finder").resolve("cache"), target);
                     mine.phase = "starting";
+                    SearchRun previous = null;
                     for (String order : SearchRun.ORDERS) {
                         if (mine.generation != generation) return;
+                        mine.unstarted = order;
+                        if (previous != null && previous.process.exitValue() == SearchRun.OUT_OF_MEMORY_EXIT) {
+                            mine.error = "the " + previous.order + " search ran out of memory, and the " + order + " search would get the same heap. "
+                                + "Raise Search Memory or lower Search Radius.";
+                            return;
+                        }
                         SearchRun run = SearchRun.start(gameDir, seed, order, at, r, order.equals("asc"), launch);
                         mine.launched.add(run);
+                        mine.unstarted = null;
                         if (mine.generation != generation) kill(List.of(run));
                         while (!both && mine.generation == generation && run.process.isAlive()) Thread.sleep(500);
+                        previous = both ? null : run;
                     }
                 } catch (Exception e) {
                     mine.error = e.toString();
-                    kill(mine.launched);
                 } finally {
                     mine.complete = true;
                 }
@@ -154,10 +165,9 @@ public final class SeedSearch {
         if (chat) Finder.message(detail);
     }
 
-    private void fail(String status, String detail) {
-        if (lastResult != null) return;
-        lastResult = status;
-        failure = detail;
+    private void fail(String order, String why, String detail) {
+        failed.putIfAbsent(order, why);
+        failures.add(detail);
     }
 
     public String status() {
@@ -234,17 +244,20 @@ public final class SeedSearch {
         if (!running() || ticks++ % 20 != 0) return;
         Setup pending = setup;
         if (pending != null) {
-            if (pending.error != null) {
-                setup = null;
-                kill(runs);
-                runs.clear();
-                refuse("Could not start: " + pending.error, "Seed search could not start: " + pending.error, fromCommand);
-                startPending(mc);
-                return;
-            }
             boolean complete = pending.complete;
             for (SearchRun run : pending.launched) if (!runs.contains(run)) runs.add(run);
-            if (complete) setup = null;
+            if (complete) {
+                setup = null;
+                if (pending.error != null && runs.isEmpty()) {
+                    refuse("Could not start: " + pending.error, "Seed search could not start: " + pending.error, fromCommand);
+                    startPending(mc);
+                    return;
+                }
+                if (pending.error != null) {
+                    String order = pending.unstarted == null ? "search" : pending.unstarted;
+                    fail(order, order + " did not start", "The " + order + " search did not start: " + pending.error);
+                }
+            }
         }
         for (SearchRun run : runs) {
             for (String line : run.newLines()) handle(mc, run, line);
@@ -253,7 +266,7 @@ public final class SeedSearch {
                 if (!run.finished) {
                     run.finished = true;
                     boolean memory = run.process.exitValue() == SearchRun.OUT_OF_MEMORY_EXIT;
-                    fail("Failed: " + (memory ? "out of memory" : run.order + " server stopped"), "The " + run.order + " search server "
+                    fail(run.order, memory ? "out of memory" : run.order + " server stopped", "The " + run.order + " search server "
                         + (memory ? "ran out of memory" : "stopped without a result") + "; its log: " + run.dir.resolve("server.log"));
                 }
             }
@@ -297,7 +310,7 @@ public final class SeedSearch {
             }
             case "error" -> {
                 run.finished = true;
-                fail("Failed: " + f[1], "Seed search failed (" + run.order + "): " + f[1]);
+                fail(run.order, f[1], "Seed search failed (" + run.order + "): " + f[1]);
             }
             default -> {
             }
@@ -305,25 +318,29 @@ public final class SeedSearch {
     }
 
     private void finish(Minecraft mc) {
-        boolean complete = runs.stream().allMatch(run -> run.ok);
+        boolean complete = failed.isEmpty(), done = runs.stream().anyMatch(run -> run.ok);
         for (SearchRun run : runs) run.deleteWorld();
         runs.clear();
         Path folder = Finder.DATA.resolve(key);
+        String saveError = null;
         try {
             Files.createDirectories(folder);
             if (!lush.isEmpty()) Files.write(folder.resolve("lush.tsv"), mergeLush(Data.lines(folder.resolve("lush.tsv")), lush));
             Files.write(folder.resolve("predictions.tsv"), mergePredictions(Data.lines(folder.resolve("predictions.tsv")), complete));
         } catch (IOException e) {
-            fail("Could not save results", "Could not save the search results: " + e.getMessage());
+            saveError = "Could not save the search results: " + e.getMessage();
         }
         long both = hits.values().stream().filter(h -> h[1].equals("both")).count(), seconds = (System.currentTimeMillis() - startedAt) / 1000;
-        if (lastResult == null) {
-            lastResult = "Done: " + hits.size() + (hits.size() == 1 ? " half, " : " halves, ") + lush.size() + " lush tiles, " + seconds + " s";
-            Finder.message("Seed search done in " + seconds + " s: " + hits.size() + " spliced top halves (" + both
-                + " in both chunk orders), " + lush.size() + " lush cave tiles; saved for " + key + "." + (leftOut == null ? "" : leftOut));
-        } else {
-            Finder.message(failure);
+        if (done && saveError == null) {
+            Finder.message("Seed search done in " + seconds + " s" + (complete ? "" : " (" + String.join(", ", failed.keySet()) + " failed)") + ": "
+                + hits.size() + " spliced top halves (" + both + " in both chunk orders), " + lush.size() + " lush cave tiles; saved for " + key + "."
+                + (leftOut == null ? "" : leftOut));
         }
+        failures.forEach(Finder::message);
+        if (saveError != null) Finder.message(saveError);
+        if (!complete) lastResult = "Failed: " + failed.values().iterator().next();
+        else if (saveError != null) lastResult = "Could not save results";
+        else lastResult = "Done: " + hits.size() + (hits.size() == 1 ? " half, " : " halves, ") + lush.size() + " lush tiles, " + seconds + " s";
         boolean here = key.equals(finder.memory.key());
         if (here) finder.reloadData();
         if (missedLive) finder.announceSavedOnReturn(key);
