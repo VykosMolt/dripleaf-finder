@@ -48,13 +48,13 @@ final class SearchScenario implements Scenario {
     }
 
     private void start(Minecraft mc, Finder finder) {
-        String[] before = finder.search.generationVersion();
+        String[] before = finder.seeds.generationVersion();
         notes += "version before typing: " + before[0] + " (" + before[1] + "); ";
         String ping = System.getProperty("dripleaffinder.smoke.ping");
         if (ping != null) notes += "pinged " + ping + ": " + ServerVersion.detect(ping) + "; ";
-        if (flag.startsWith("version=")) finder.search.setVersion(flag.substring(8));
+        if (flag.startsWith("version=")) finder.seeds.setVersion(flag.substring(8));
         if (flag.equals("authority")) {
-            finder.search.setSeed(seed);
+            finder.seeds.setSeed(seed);
             Smoke.pushSeed(Long.parseLong(seed) + 1);
             authorityAt = smoke.ticks;
         } else {
@@ -65,12 +65,12 @@ final class SearchScenario implements Scenario {
 
     private void checkAuthority(Minecraft mc, Finder finder) {
         String handed = Data.read(Finder.DATA.resolve(Finder.connectionKey(mc)).resolve("seedcracker.txt"));
-        boolean kept = seed.equals(finder.search.seed()) && !finder.search.running()
+        boolean kept = seed.equals(finder.seeds.seed()) && !finder.search.running()
             && String.valueOf(Long.parseLong(seed) + 1).equals(handed);
         notes += "typed seed kept over SeedcrackerX's: " + kept + " (SeedcrackerX's stored: " + handed + "); ";
         authorityAt = -1;
         if (!kept) {
-            smoke.shoot(mc, "FAIL " + notes + "seed now " + finder.search.seed() + ", search running " + finder.search.running());
+            smoke.shoot(mc, "FAIL " + notes + "seed now " + finder.seeds.seed() + ", search running " + finder.search.running());
             return;
         }
         finder.search.start(mc, radius);

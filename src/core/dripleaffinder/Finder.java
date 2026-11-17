@@ -45,7 +45,9 @@ public final class Finder {
     private int ticks;
     private Consumer<Boolean> enabledListener;
 
+    public final Seeds seeds = new Seeds(this);
     public final SeedSearch search = new SeedSearch(this);
+    final ServerVersion serverVersion = new ServerVersion();
 
     Finder(Settings settings) {
         this.settings = settings;

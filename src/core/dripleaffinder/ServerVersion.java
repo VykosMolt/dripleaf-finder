@@ -10,10 +10,48 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.Hashtable;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import javax.naming.directory.Attribute;
 import javax.naming.directory.InitialDirContext;
+import net.minecraft.client.Minecraft;
 
 final class ServerVersion {
+    private final Map<String, String> detected = new ConcurrentHashMap<>();
+    private final Set<String> asking = ConcurrentHashMap.newKeySet();
+    private String joinedKey;
+    private int ticks;
+
+    void tick(Minecraft mc) {
+        if (ticks++ % 20 != 0) return;
+        String now = Finder.connectionKey(mc);
+        if (now != null && !now.equals(joinedKey)) joined(now, Compat.serverAddress(mc));
+        joinedKey = now;
+    }
+
+    String reported(String key) {
+        return detected.get(key);
+    }
+
+    boolean asking(String key) {
+        return asking.contains(key);
+    }
+
+    private void joined(String key, String address) {
+        if (address == null || key == null || detected.containsKey(key) || !asking.add(key)) return;
+        Thread thread = new Thread(() -> {
+            try {
+                String version = detect(address);
+                detected.put(key, version == null ? "" : version);
+            } finally {
+                asking.remove(key);
+            }
+        }, "Dripleaf server version");
+        thread.setDaemon(true);
+        thread.start();
+    }
+
     static String detect(String address) {
         try {
             String[] reply = status(address);
@@ -96,8 +134,5 @@ final class ServerVersion {
             if ((b & 0x80) == 0) return value;
         }
         throw new IOException("varint too long");
-    }
-
-    private ServerVersion() {
     }
 }

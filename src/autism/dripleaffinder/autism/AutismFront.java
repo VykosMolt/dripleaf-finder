@@ -40,8 +40,8 @@ public final class AutismFront extends SimpleAddon {
             add(seed.description("The seed for the server you are on; it always wins over the one SeedcrackerX cracks. Empty: SeedcrackerX's."));
             add(version.description("The Minecraft version that generated this server's world. Empty: the version the server reports."));
             addInt("radius", "Search Radius", SeedSearch.DEFAULT_RADIUS, 64, SeedSearch.MAX_RADIUS, 64);
-            seedField = new Field(seed, finder.search::typedSeed, finder.search::setSeed);
-            versionField = new Field(version, finder.search::typedVersion, finder.search::setVersion);
+            seedField = new Field(seed, finder.seeds::typedSeed, finder.seeds::setSeed);
+            versionField = new Field(version, finder.seeds::typedVersion, finder.seeds::setVersion);
             add(new ActionSetting("search", "Seed Search", this::search).buttonLabel("Search").requiresWorld());
             add(new ActionSetting("stopSearch", "Stop Seed Search", finder.search::stop).buttonLabel("Stop"));
             finder.onEnabledChanged(on -> {

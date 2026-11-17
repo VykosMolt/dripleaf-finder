@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import net.fabricmc.loader.api.FabricLoader;
 
 final class Versions {
     static final Map<String, int[]> RELEASES = new LinkedHashMap<>();
@@ -23,6 +24,10 @@ final class Versions {
     }
 
     static final Pattern VERSION = Pattern.compile("(?<![\\d.])(1\\.\\d+(?:\\.\\d+)?|2\\d\\.\\d+(?:\\.\\d+)?)(?![\\d.])");
+
+    static String client() {
+        return FabricLoader.getInstance().getModContainer("minecraft").orElseThrow().getMetadata().getVersion().getFriendlyString();
+    }
 
     static boolean known(String version) {
         return RELEASES.containsKey(version);

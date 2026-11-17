@@ -74,7 +74,7 @@ public final class Smoke implements ClientModInitializer {
         if (viaSeedcracker) {
             pushSeed(Long.parseLong(seed));
         } else {
-            finder.search.setSeed(seed);
+            finder.seeds.setSeed(seed);
             finder.search.start(mc, radius);
         }
     }

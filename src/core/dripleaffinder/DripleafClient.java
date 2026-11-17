@@ -17,6 +17,7 @@ public final class DripleafClient implements ClientModInitializer {
         Finder finder = finder();
         ClientTickEvents.END_CLIENT_TICK.register(mc -> {
             finder.tick(mc);
+            finder.serverVersion.tick(mc);
             finder.search.tick(mc);
         });
         Ui.register(finder);

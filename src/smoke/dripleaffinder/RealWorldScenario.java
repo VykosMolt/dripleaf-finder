@@ -78,8 +78,8 @@ final class RealWorldScenario implements Scenario {
             smoke.shoot(mc, "FAIL " + (finder.search.hits.isEmpty() && done ? "no predicted top half to visit: " : "") + last);
             return;
         }
-        if (scx && !seed.equals(finder.search.seed())) {
-            smoke.shoot(mc, "FAIL SeedcrackerX's seed " + finder.search.seed() + " is not the world's " + seed);
+        if (scx && !seed.equals(finder.seeds.seed())) {
+            smoke.shoot(mc, "FAIL SeedcrackerX's seed " + finder.seeds.seed() + " is not the world's " + seed);
             return;
         }
         BlockPos center = finder.search.center();

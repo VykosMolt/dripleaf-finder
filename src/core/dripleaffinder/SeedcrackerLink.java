@@ -6,6 +6,6 @@ import net.minecraft.client.Minecraft;
 public final class SeedcrackerLink implements SeedCrackerAPI {
     @Override
     public void pushWorldSeed(long seed) {
-        Minecraft.getInstance().execute(() -> DripleafClient.finder().search.seedFound(String.valueOf(seed), "SeedcrackerX"));
+        Minecraft.getInstance().execute(() -> DripleafClient.finder().seeds.seedFound(String.valueOf(seed), "SeedcrackerX"));
     }
 }
