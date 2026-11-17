@@ -6,46 +6,55 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
-import java.util.Hashtable;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import javax.naming.directory.Attribute;
-import javax.naming.directory.InitialDirContext;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientPacketListener;
+import net.minecraft.client.multiplayer.resolver.ResolvedServerAddress;
+import net.minecraft.client.multiplayer.resolver.ServerAddress;
+import net.minecraft.client.multiplayer.resolver.ServerNameResolver;
 
 final class ServerVersion {
-    private final Map<String, String> detected = new ConcurrentHashMap<>();
-    private final Set<String> asking = ConcurrentHashMap.newKeySet();
+    private final Map<String, Query> queries = new ConcurrentHashMap<>();
     private String joinedKey;
+    private ClientPacketListener connection;
     private int ticks;
+
+    private static final class Query {
+        volatile String version;
+        volatile boolean asking = true;
+    }
 
     void tick(Minecraft mc) {
         if (ticks++ % 20 != 0) return;
         String now = Finder.connectionKey(mc);
-        if (now != null && !now.equals(joinedKey)) joined(now, Compat.serverAddress(mc));
+        if (now != null && (!now.equals(joinedKey) || connection != mc.getConnection())) joined(now, Compat.serverAddress(mc));
         joinedKey = now;
+        connection = mc.getConnection();
     }
 
     String reported(String key) {
-        return detected.get(key);
+        Query query = queries.get(key);
+        return query == null ? null : query.version;
     }
 
     boolean asking(String key) {
-        return asking.contains(key);
+        Query query = queries.get(key);
+        return query != null && query.asking;
     }
 
     private void joined(String key, String address) {
-        if (address == null || key == null || detected.containsKey(key) || !asking.add(key)) return;
+        if (address == null || key == null) return;
+        Query query = new Query();
+        queries.put(key, query);
         Thread thread = new Thread(() -> {
             try {
                 String version = detect(address);
-                detected.put(key, version == null ? "" : version);
+                query.version = version == null ? "" : version;
             } finally {
-                asking.remove(key);
+                query.asking = false;
             }
         }, "Dripleaf server version");
         thread.setDaemon(true);
@@ -62,21 +71,13 @@ final class ServerVersion {
     }
 
     static String[] status(String address) throws IOException {
-        String host = address.trim();
-        int port = 25565;
-        int colon = host.lastIndexOf(':');
-        if (colon > 0 && host.indexOf(':') == colon) {
-            port = Integer.parseInt(host.substring(colon + 1));
-            host = host.substring(0, colon);
-        } else {
-            String[] srv = srv(host);
-            if (srv != null) {
-                host = srv[0];
-                port = Integer.parseInt(srv[1]);
-            }
-        }
+        ServerAddress target = address(address);
+        String host = target.getHost();
+        int port = target.getPort();
+        var resolved = ServerNameResolver.DEFAULT.resolveAddress(target).map(ResolvedServerAddress::asInetSocketAddress)
+            .orElseThrow(() -> new IOException("Could not resolve the server address"));
         try (Socket socket = new Socket()) {
-            socket.connect(new InetSocketAddress(host, port), 5000);
+            socket.connect(resolved, 5000);
             socket.setSoTimeout(5000);
             DataOutputStream out = new DataOutputStream(socket.getOutputStream());
             DataInputStream in = new DataInputStream(socket.getInputStream());
@@ -105,17 +106,11 @@ final class ServerVersion {
         }
     }
 
-    private static String[] srv(String host) {
-        try {
-            Hashtable<String, String> env = new Hashtable<>();
-            env.put("java.naming.factory.initial", "com.sun.jndi.dns.DnsContextFactory");
-            Attribute record = new InitialDirContext(env).getAttributes("_minecraft._tcp." + host, new String[] {"SRV"}).get("SRV");
-            if (record == null) return null;
-            String[] f = record.get().toString().split(" ");
-            return new String[] {f[3].endsWith(".") ? f[3].substring(0, f[3].length() - 1) : f[3], f[2]};
-        } catch (Exception | LinkageError e) {
-            return null;
-        }
+    static ServerAddress address(String text) throws IOException {
+        if (text == null || text.isBlank()) throw new IOException("Empty server address");
+        ServerAddress address = ServerAddress.parseString(text.trim());
+        if (address.getHost().isEmpty()) throw new IOException("Invalid server address");
+        return address;
     }
 
     private static void varInt(DataOutputStream out, int value) throws IOException {
