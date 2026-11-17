@@ -98,6 +98,11 @@ public final class ClientCheck {
         expect("host names", java.util.List.of(DataKey.host("Java.HugoSMP.net:25565"), DataKey.host("hugosmp.net."),
                 DataKey.host(null), DataKey.host(".."), DataKey.host("[::1]:25565")),
             java.util.List.of("java.hugosmp.net", "hugosmp.net", "local", "unknown", "unknown"));
+        expect("windows device names", java.util.List.of(DataKey.of("CON", null), DataKey.of("aux.example.net:25601", null), DataKey.of("nul.", null),
+                DataKey.of("com1", null), DataKey.of("lpt9.example.net", null), DataKey.of("com10.net", null), DataKey.of("console.net", null),
+                DataKey.of("example.aux", null), DataKey.of(null, "con")),
+            java.util.List.of("_con", "_aux.example.net_25601", "_nul", "_com1", "_lpt9.example.net", "com10.net", "console.net", "example.aux",
+                "local-con"));
         long gib = 1L << 30;
         expect("search memory", java.util.Arrays.asList(Settings.memoryGb(null, 32 * gib), Settings.memoryGb(null, 15 * gib + gib / 2),
                 Settings.memoryGb(null, 8 * gib), Settings.memoryGb(null, 4 * gib), Settings.memoryGb(null, 2 * gib), Settings.memoryGb(12, 8 * gib),
