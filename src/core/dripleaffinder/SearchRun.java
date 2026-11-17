@@ -51,8 +51,7 @@ final class SearchRun {
             throws IOException {
         Path searches = searches(gameDir), dir = searches.resolve(order);
         try {
-            delete(dir);
-            Files.createDirectories(dir);
+            clear(dir, jars(launch));
         } catch (IOException stillOpen) {
             dir = Files.createTempDirectory(searches, order + "-");
         }
@@ -83,6 +82,31 @@ final class SearchRun {
         Process process = new ProcessBuilder(command(dir, radius, launch)).directory(dir.toRealPath().toFile()).redirectErrorStream(true)
             .redirectOutput(dir.resolve("server.log").toFile()).start();
         return new SearchRun(order, dir, process);
+    }
+
+    static void clear(Path dir, String jars) throws IOException {
+        Path stamp = dir.resolve(".fabric").resolve("dripleaf-finder-jars");
+        boolean keep = Files.isRegularFile(stamp) && Files.readString(stamp).equals(jars);
+        Files.createDirectories(dir);
+        try (Stream<Path> files = Files.list(dir)) {
+            for (Path file : files.toList()) if (!keep || !file.getFileName().toString().equals(".fabric")) delete(file);
+        }
+        Files.createDirectories(stamp.getParent());
+        Files.writeString(stamp, jars);
+    }
+
+    static String jars(Searchers.Launch launch) throws IOException {
+        List<Path> all = new ArrayList<>(List.of(launch.gameJar()));
+        all.addAll(launch.mods());
+        all.addAll(launch.libraries());
+        for (String entry : launch.classpath()) all.add(Path.of(entry));
+        StringBuilder out = new StringBuilder();
+        for (Path jar : all) {
+            out.append(jar.toAbsolutePath());
+            if (Files.isRegularFile(jar)) out.append('\t').append(Searchers.sha1(jar));
+            out.append('\n');
+        }
+        return out.toString();
     }
 
     static List<String> command(Path dir, int radius, Searchers.Launch launch) throws IOException {
