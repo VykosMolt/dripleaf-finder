@@ -244,8 +244,10 @@ public final class SeedSearch {
         generation++;
         Setup pending = setup;
         setup = null;
+        if (pending != null) for (SearchRun run : pending.launched) if (!runs.contains(run)) runs.add(run);
+        Minecraft mc = Minecraft.getInstance();
+        for (SearchRun run : runs) for (String line : run.newLines()) handle(mc, run, line);
         kill(runs);
-        if (pending != null) kill(pending.launched);
         runs.clear();
         pendingKey = null;
         String saveError = hits.isEmpty() && lush.isEmpty() ? null : save(false);
