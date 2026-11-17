@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Properties;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import net.minecraft.core.BlockPos;
@@ -104,17 +105,10 @@ final class SearchRun {
         for (String entry : launch.classpath()) all.add(Path.of(entry));
         StringBuilder out = new StringBuilder();
         for (Path jar : all) {
-            List<Path> entries;
-            if (Files.isDirectory(jar)) {
-                try (Stream<Path> files = Files.walk(jar, FileVisitOption.FOLLOW_LINKS)) {
-                    entries = files.sorted().toList();
-                }
-            } else entries = List.of(jar);
-            for (Path entry : entries) {
-                out.append(entry.toAbsolutePath());
-                if (Files.isRegularFile(entry)) out.append('\t').append(Searchers.sha1(entry));
-                out.append('\n');
-            }
+            out.append(jar.toAbsolutePath());
+            if (Files.isRegularFile(jar)) out.append('\t').append(Searchers.sha1(jar));
+            else if (Files.isDirectory(jar)) out.append('\t').append(UUID.randomUUID());
+            out.append('\n');
         }
         return out.toString();
     }

@@ -280,6 +280,12 @@ public final class ClientCheck {
             Searchers.Launch directories = new Searchers.Launch(jars.get(0), java.util.List.of(jars.get(1)),
                 java.util.List.of(classes.toString()), java.util.List.of(jars.get(3)));
             String before = SearchRun.jars(directories);
+            SearchRun.clear(dir, before);
+            java.nio.file.Files.writeString(cached, "cached");
+            String unchangedDirectory = SearchRun.jars(directories);
+            SearchRun.clear(dir, unchangedDirectory);
+            expect("directory search cache", java.util.List.of(before.equals(unchangedDirectory), java.nio.file.Files.exists(cached)),
+                java.util.List.of(false, false));
             java.nio.file.attribute.FileTime modified = java.nio.file.Files.getLastModifiedTime(file);
             java.nio.file.Files.writeString(file, "new");
             java.nio.file.Files.setLastModifiedTime(file, modified);
