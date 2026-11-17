@@ -72,7 +72,7 @@ public final class Seeds {
         try {
             if (seed != null && !setAside(folder, seed).isEmpty()) Finder.message("Predictions and lush caves of " + from + " set aside in " + folder + ".");
         } catch (IOException e) {
-            Finder.message("Could not set aside the predictions and lush caves of " + from + ": " + e.getMessage());
+            Finder.message("Could not set aside the predictions and lush caves of " + from + " (" + e.getClass().getSimpleName() + ").");
         }
         if (key.equals(finder.memory.key())) finder.resetPredictions();
     }
