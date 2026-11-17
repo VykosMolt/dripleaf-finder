@@ -150,7 +150,7 @@ public final class SeedSearch {
                         while (!both && mine.generation == generation && run.process.isAlive()) Thread.sleep(500);
                         previous = both ? null : run;
                     }
-                } catch (Exception e) {
+                } catch (Throwable e) {
                     mine.error = e.toString();
                 } finally {
                     mine.complete = true;
@@ -274,8 +274,9 @@ public final class SeedSearch {
             for (SearchRun run : pending.launched) if (!runs.contains(run)) runs.add(run);
             if (complete) {
                 setup = null;
-                if (pending.error != null && runs.isEmpty()) {
-                    refuse(key, "Could not start: " + pending.error, "Seed search could not start: " + pending.error, true);
+                if (runs.isEmpty()) {
+                    String error = pending.error == null ? "no search server started" : pending.error;
+                    refuse(key, "Could not start: " + error, "Seed search could not start: " + error, true);
                     startPending(mc);
                     return;
                 }
@@ -347,7 +348,8 @@ public final class SeedSearch {
     }
 
     private void finish(Minecraft mc) {
-        boolean complete = failed.isEmpty(), done = runs.stream().anyMatch(run -> run.ok);
+        boolean complete = failed.isEmpty() && !runs.isEmpty(), done = runs.stream().anyMatch(run -> run.ok);
+        if (!done && failed.isEmpty()) fail("search", "no search server ran", "No search server ran, so nothing was searched.");
         for (SearchRun run : runs) run.deleteWorld();
         runs.clear();
         String saveError = save(complete);
