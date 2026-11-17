@@ -429,7 +429,8 @@ public final class SeedSearch {
             long[] f = numbers(line, 3);
             if (f == null) continue;
             boolean inside = Math.abs(f[0] - center.getX()) <= radius && Math.abs(f[2] - center.getZ()) <= radius;
-            boolean leftOut = spawn != null && Math.abs(f[0] - spawn[0]) <= spawn[2] && Math.abs(f[2] - spawn[1]) <= spawn[2];
+            boolean leftOut = spawn != null && Math.abs((f[0] >> 4) - (spawn[0] >> 4)) <= spawn[2] / 16
+                && Math.abs((f[2] >> 4) - (spawn[1] >> 4)) <= spawn[2] / 16;
             BlockPos pos = new BlockPos((int) f[0], (int) f[1], (int) f[2]);
             if ((!inside || !replaceArea || leftOut) && !hits.containsKey(pos)) lines.add(line);
         }

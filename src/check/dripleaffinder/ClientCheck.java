@@ -136,11 +136,14 @@ public final class ClientCheck {
         expect("merged predictions", java.util.List.of(merged.apply(new int[] {0, 0, 64}, true), merged.apply(null, true), merged.apply(null, false)),
             java.util.List.of(java.util.List.of("10asc", "5000asc", "500asc"), java.util.List.of("5000asc", "500asc"),
                 java.util.List.of("10asc", "300asc", "5000asc", "500asc")));
+        expect("spawn chunks kept", SeedSearch.mergePredictions(java.util.List.of("70\t40\t-64\ttop\tair\tasc\tyes\t1", "-65\t40\t0\ttop\tair\tasc\tyes\t1",
+                "80\t40\t0\ttop\tair\tasc\tyes\t1"), java.util.Map.of(), new BlockPos(0, 64, 0), 1000, new int[] {8, 8, 64}, true)
+            .stream().map(line -> line.split("\t")[0]).toList(), java.util.List.of("70"));
         commandLine();
 
         System.out.println("CLIENT CHECK PASSED: 2 azalea trees, trunkless leaves dropped; data rows, box edges, memory, data keys, host names,"
             + " server versions, server types, folia guidance, splice guidance, search memory, brief status, candidates row, set-aside names, set aside,"
-            + " merged predictions, search command line");
+            + " merged predictions, spawn chunks kept, search command line");
     }
 
     static void setAside(String name) throws java.io.IOException {
