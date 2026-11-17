@@ -46,8 +46,9 @@ public final class Seeds {
         Path saved = Finder.DATA.resolve(key).resolve("predictions.tsv");
         try {
             if (before != null && Files.exists(saved)) {
-                Files.move(saved, saved.resolveSibling("predictions-" + before + ".tsv"), StandardCopyOption.REPLACE_EXISTING);
-                Finder.message("Predictions from seed " + before + " set aside (predictions-" + before + ".tsv).");
+                String aside = "predictions-" + before.replaceAll("[^A-Za-z0-9-]", "") + ".tsv";
+                Files.move(saved, saved.resolveSibling(aside), StandardCopyOption.REPLACE_EXISTING);
+                Finder.message("Predictions from seed " + before + " set aside (" + aside + ").");
             }
         } catch (IOException e) {
             Finder.message("Could not set aside the predictions of seed " + before + ": " + e.getMessage());
