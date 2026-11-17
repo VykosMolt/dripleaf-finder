@@ -51,7 +51,10 @@ final class SplicedDripleaf extends SimpleModule {
             case "masked" -> String.valueOf(model.masked());
             case "lush" -> String.valueOf(model.lush());
             case "azalea" -> String.valueOf(model.azalea());
-            case "seed" -> model.inWorld() && model.seed() != null ? model.seed() : "";
+            case "seed" -> {
+                String seed = model.seed();
+                yield seed == null ? "" : seed;
+            }
             case "version" -> model.version();
             case "serverType" -> model.serverType();
             case "radius" -> String.valueOf(model.radius());

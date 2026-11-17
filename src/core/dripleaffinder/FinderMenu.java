@@ -24,7 +24,7 @@ final class FinderMenu implements MenuModel {
     }
 
     public boolean masked() {
-        return finder.settings.masked;
+        return settings.masked;
     }
 
     public void setMasked(boolean on) {
@@ -32,7 +32,7 @@ final class FinderMenu implements MenuModel {
     }
 
     public boolean lush() {
-        return finder.settings.lush;
+        return settings.lush;
     }
 
     public void setLush(boolean on) {
@@ -40,7 +40,7 @@ final class FinderMenu implements MenuModel {
     }
 
     public boolean azalea() {
-        return finder.settings.azalea;
+        return settings.azalea;
     }
 
     public void setAzalea(boolean on) {

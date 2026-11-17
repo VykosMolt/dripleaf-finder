@@ -27,13 +27,6 @@ final class Guidance {
             + direction(a[0] - b[0], a[1] - b[1]) + ")";
     }
 
-    static double[] approach(String first, String then) {
-        if (anyOrder(first, then) || !known(first) || !known(then)) return null;
-        int[] a = chunk(first), b = chunk(then);
-        double dx = a[0] - b[0], dz = a[1] - b[1], length = Math.hypot(dx, dz);
-        return new double[] {dx / length, dz / length};
-    }
-
     private static String name(int x, int z, int[] chunk) {
         int dx = chunk[0] - (x >> 4), dz = chunk[1] - (z >> 4);
         return dx == 0 && dz == 0 ? "its own chunk" : "the chunk to its " + direction(dx, dz);

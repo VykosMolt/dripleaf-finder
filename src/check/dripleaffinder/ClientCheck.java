@@ -63,7 +63,6 @@ public final class ClientCheck {
             Guidance.text(3705, 62, "smooth_basalt", "-", "-"),
             Guidance.text(3705, 62, "air", "231,3", "-"),
             Guidance.text(3705, 62, "air", "231,3", "x,3"),
-            String.valueOf(Guidance.approach("231,3", "-")),
             Guidance.direction(0, -1) + " " + Guidance.direction(1, 1)),
             java.util.List.of(
                 "cut by a geode; real only if its own chunk generated before the chunk to its east (in unexplored land: walk in from the west)",
@@ -73,7 +72,6 @@ public final class ClientCheck {
                 "cut by a geode; the chunk order it needs is unknown",
                 "cut by a geode; the chunk order it needs is unknown",
                 "cut by a geode; the chunk order it needs is unknown",
-                "null",
                 "north south-east"));
         expect("server versions", java.util.Arrays.asList(Versions.fromStatus("Paper 1.21.4", 769), Versions.fromStatus("1.20.1", 763),
             Versions.fromStatus("Velocity 3.3.0-SNAPSHOT (git-abc) 1.7.2-1.21.11", 774), Versions.fromStatus("Waterfall", 767),
