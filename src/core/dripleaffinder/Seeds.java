@@ -58,7 +58,10 @@ public final class Seeds {
 
     private void seedChanged(String key, String before) {
         if (Objects.equals(before, seed(key))) return;
-        if (finder.search.searching(key)) finder.search.stop(false);
+        if (finder.search.searching(key)) {
+            finder.search.stop(false);
+            finder.search.lastResult = "Stopped: seed changed";
+        }
         Path saved = Finder.DATA.resolve(key).resolve("predictions.tsv");
         try {
             if (before != null && Files.exists(saved)) {
