@@ -18,9 +18,9 @@ final class SplicedDripleaf extends SimpleModule {
         super("spliced", "Spliced Dripleaf Finder", "Finds small dripleaf top halves that have no bottom half.");
         this.model = model;
         add(new BoolSetting("masked", "Masked Server", false));
-        add(new ActionSetting("nearest", "Nearest Predictions", model::listPredictions).buttonLabel("List"));
+        add(new ActionSetting("nearest", "Nearest Predictions", model::listPredictions).buttonLabel("List").requiresWorld());
         add(new BoolSetting("lush", "Lush Cave Pings", true));
-        add(new ActionSetting("nearestLush", "Nearest Lush Caves", model::listLush).buttonLabel("List"));
+        add(new ActionSetting("nearestLush", "Nearest Lush Caves", model::listLush).buttonLabel("List").requiresWorld());
         add(new BoolSetting("azalea", "Azalea Trees", true));
         add(new StringSetting("seed", "World Seed", "").description("Wins over SeedcrackerX. Enter saves.").requiresWorld().keepOnReset());
         add(new ChoiceSetting("version", "World Version", MenuModel.AUTO, model.versions())
