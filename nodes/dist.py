@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
-import hashlib, io, json, os, shutil, sys, zipfile
+import hashlib, json, os, shutil, sys, zipfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 DIST = os.path.join(HERE, '..', 'dist')
-rows = [l.rstrip('\n').split('\t') for l in open(os.path.join(HERE, 'nodes.tsv')) if l.strip() and not l.startswith('#')]
-props = lambda mc: dict(l.strip().split('=', 1) for l in open(os.path.join(HERE, mc, 'gradle.properties')) if '=' in l)
+releases = [l.split('\t')[0].strip() for l in open(os.path.join(HERE, 'nodes.tsv')) if l.strip() and not l.startswith('#')]
+
+def props(mc):
+    return dict(l.strip().split('=', 1) for l in open(os.path.join(HERE, mc, 'gradle.properties')) if '=' in l)
+
+def has_autism(mc):
+    return props(mc).get('autism') == 'true'
 
 def jar(mc, base='dripleaf-finder'):
     p = props(mc)
@@ -36,38 +41,38 @@ def write_range(src, dst, versions):
                 meta['depends']['minecraft'] = versions if len(versions) > 1 else versions[0]
                 data = (json.dumps(meta, indent=2) + '\n').encode()
             out.writestr(info, data)
-    return version
 
-for r in rows:
-    for path in [jar(r[0])] + ([jar(r[0], 'dripleaf-finder-autism')] if props(r[0]).get('autism') == 'true' else []):
+for mc in releases:
+    for path in [jar(mc)] + ([jar(mc, 'dripleaf-finder-autism')] if has_autism(mc) else []):
         if not os.path.exists(path):
-            sys.exit(f'{r[0]}: no jar ({path}); build it first (nodes/build.sh {r[0]})')
+            sys.exit(f'{mc}: no jar ({path}); build it first (nodes/build.sh {mc})')
 shutil.rmtree(DIST, ignore_errors=True)
 os.makedirs(DIST)
+
 groups = []
-for r in rows:
-    mc = r[0]
+for mc in releases:
     sig = signature(jar(mc))
     if groups and groups[-1][1] == sig:
         groups[-1][0].append(mc)
     else:
         groups.append(([mc], sig))
+
 ranges = []
 for versions, _ in groups:
     first, last = versions[0], versions[-1]
     name = f"dripleaf-finder-{props(first)['mod_version']}+mc{first if first == last else first + '-' + last}.jar"
     write_range(jar(first), os.path.join(DIST, name), versions)
-    ranges += [f'{v}\t{name}\n' for v in versions]
+    ranges += [(mc, name) for mc in versions]
     print(f'{name}: {", ".join(versions)}')
-open(os.path.join(DIST, 'ranges.tsv'), 'w').write(''.join(ranges))
-plain = {name: open(os.path.join(DIST, name), 'rb').read() for name in sorted({line.split('\t')[1].strip() for line in ranges})}
-for r in rows:
-    p = props(r[0])
-    if p.get('autism') == 'true':
-        shutil.copy(jar(r[0], 'dripleaf-finder-autism'), DIST)
-        print(os.path.basename(jar(r[0], 'dripleaf-finder-autism')) + ': ' + r[0] + ' (AUTISM addon)')
+open(os.path.join(DIST, 'ranges.tsv'), 'w').write(''.join(f'{mc}\t{name}\n' for mc, name in ranges))
 
-table = ''.join(f"{line.split(chr(9))[0]}\t{line.split(chr(9))[1].strip()}\t{hashlib.sha1(plain[line.split(chr(9))[1].strip()]).hexdigest()}\n" for line in ranges)
+plain = {name: open(os.path.join(DIST, name), 'rb').read() for name in sorted({name for _, name in ranges})}
+for mc in releases:
+    if has_autism(mc):
+        shutil.copy(jar(mc, 'dripleaf-finder-autism'), DIST)
+        print(os.path.basename(jar(mc, 'dripleaf-finder-autism')) + ': ' + mc + ' (AUTISM addon)')
+
+table = ''.join(f'{mc}\t{name}\t{hashlib.sha1(plain[name]).hexdigest()}\n' for mc, name in ranges)
 for name in sorted(os.listdir(DIST)):
     if not name.endswith('.jar'):
         continue
