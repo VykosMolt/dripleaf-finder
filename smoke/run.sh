@@ -9,7 +9,7 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 NODE="$HERE/../nodes/$MC"
 [ -d "$NODE" ] || { echo "SMOKE FAIL $MC $MODE: no node"; exit 2; }
 prop() { sed -n "s/^$1=//p" "$NODE/gradle.properties"; }
-case "$(prop java)" in 16|17) RT=gamma ;; 21) RT=delta ;; *) RT=epsilon ;; esac
+case "$(prop java)" in 21) RT=delta ;; *) RT=epsilon ;; esac
 JAVA=~/.local/share/PrismLauncher/java/java-runtime-$RT/bin/java
 SERVER_JAR=~/.local/share/gradle/caches/fabric-loom/$MC/minecraft-server.jar
 [ -f "$SERVER_JAR" ] || { echo "SMOKE FAIL $MC $MODE: no server jar (build the node first)"; exit 2; }
@@ -24,8 +24,6 @@ if [ "$FLAG" = scx ]; then
   SMOKE_EXTRA="$HERE/seedcracker/$SCX${SMOKE_EXTRA:+:$SMOKE_EXTRA}"
 fi
 PORT=$(python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')
-NEGATIVE=""
-python3 -c 'import sys; v = [int(x) for x in sys.argv[1].split(".")] + [0]; sys.exit(0 if v >= [1, 19, 3] else 1)' "$MC" && NEGATIVE=4,101,40
 pids=()
 cleanup() { for p in "${pids[@]}"; do kill "$p" 2>/dev/null; done; }
 trap cleanup EXIT
@@ -48,19 +46,6 @@ else
     'generator-settings={"structures":{"structures":{}},"layers":[{"block":"minecraft:bedrock","height":1},{"block":"minecraft:stone","height":3}],"biome":"minecraft:lush_caves"}' \
     > server.properties
 fi
-if [ "$MODE" != realworld ] && [[ "$MC" == 1.17* || "$MC" == 1.18* ]]; then
-  sed -i '/^generator-settings=/d' server.properties
-  echo stop | timeout 300 "$JAVA" -Xmx2G -jar "$SERVER_JAR" nogui > first.log 2>&1
-  python3 - world/level.dat <<'PATCH' || { echo "SMOKE FAIL $MC $MODE: level.dat patch failed"; exit 1; }
-import gzip, sys
-data = gzip.decompress(open(sys.argv[1], 'rb').read())
-old, new = b'minecraft:plains', b'minecraft:lush_caves'
-if data.count(len(old).to_bytes(2, 'big') + old) == 0: sys.exit('no plains biome in level.dat')
-data = data.replace(len(old).to_bytes(2, 'big') + old, len(new).to_bytes(2, 'big') + new)
-open(sys.argv[1], 'wb').write(gzip.compress(data))
-PATCH
-  rm -rf world/region world/entities world/poi
-fi
 mkfifo cmd
 "$JAVA" -Xmx1536M -jar "$SERVER_JAR" nogui < cmd > server.log 2>&1 &
 pids+=($!)
@@ -71,7 +56,7 @@ grep -q 'Done (' server.log || { echo "SMOKE FAIL $MC $MODE: server did not star
 if [ "$MODE" = planted ]; then
   say "forceload add 0 0 0 63" "fill 0 100 0 8 100 4 minecraft:glass" "fill 2 101 6 4 103 6 minecraft:stone" \
       "setblock 4 100 8 minecraft:smooth_basalt" "setblock 4 105 8 minecraft:glass" "setblock 4 101 8 minecraft:small_dripleaf[half=upper]"
-  [ -n "$NEGATIVE" ] && say "fillbiome -12 92 28 19 111 51 minecraft:plains" "setblock 4 100 40 minecraft:smooth_basalt" \
+  say "fillbiome -12 92 28 19 111 51 minecraft:plains" "setblock 4 100 40 minecraft:smooth_basalt" \
       "setblock 4 105 40 minecraft:glass" "setblock 4 101 40 minecraft:small_dripleaf[half=upper]"
   say "time set noon" "gamerule doDaylightCycle false" "weather clear" "gamerule doWeatherCycle false"
 fi
@@ -97,9 +82,8 @@ if [ -n "${SMOKE_PING:-}" ]; then
   PING="-Ddripleaffinder.smoke.ping=127.0.0.1:$PING_PORT"
   cd "$WORK/server"
 fi
-case "$MC" in 1.17*|1.18*|1.19*) JOIN=""; CONNECT="-Ddripleaffinder.smoke.connect=127.0.0.1:$PORT" ;; *) JOIN="--quickPlayMultiplayer 127.0.0.1:$PORT"; CONNECT="" ;; esac
 case "$MODE" in
-  planted) SCENARIO="-Ddripleaffinder.smoke.pos=4,101,8 -Ddripleaffinder.smoke.camera=1.5,101,3.5 -Ddripleaffinder.smoke.negative=$NEGATIVE" ;;
+  planted) SCENARIO="-Ddripleaffinder.smoke.pos=4,101,8 -Ddripleaffinder.smoke.camera=1.5,101,3.5 -Ddripleaffinder.smoke.negative=4,101,40" ;;
   search) SCENARIO="-Ddripleaffinder.smoke.search=$SEED,$RADIUS,$FLAG -Ddripleaffinder.smoke.camera=$CX.5,120,$CZ.5" ;;
   realworld) SCENARIO="-Ddripleaffinder.smoke.realworld=$SEED,$RADIUS,96,$FLAG -Ddripleaffinder.smoke.camera=$CX.5,200,$CZ.5 -Ddripleaffinder.smoke.tp=$WORK/tp.txt" ;;
   *) echo "SMOKE FAIL $MC $MODE: unknown scenario"; exit 2 ;;
@@ -107,7 +91,7 @@ esac
 cd "$HERE/.."
 ALSOFT_DRIVERS=null ALSA_CONFIG_PATH=/dev/null JAVA_HOME="${JAVA_HOME:-$HOME/.local/share/gradle/jdks/eclipse_adoptium-25-amd64-linux.2}" \
   gamescope --backend headless -W 854 -H 480 -w 854 -h 480 -- ./gradlew -p "$NODE" smokeClient --console=plain \
-    "-Psmoke_jvm=-Xmx1536M -Ddripleaffinder.smoke=$WORK/result.txt $SCENARIO $CONNECT ${PING:-}" "-Psmoke_args=--username DripTest $JOIN" \
+    "-Psmoke_jvm=-Xmx1536M -Ddripleaffinder.smoke=$WORK/result.txt $SCENARIO ${PING:-}" "-Psmoke_args=--username DripTest --quickPlayMultiplayer 127.0.0.1:$PORT" \
     ${SMOKE_MOD:+"-Psmoke_mod=$SMOKE_MOD"} ${SMOKE_EXTRA:+"-Psmoke_extra=$SMOKE_EXTRA"} > "$WORK/client.log" 2>&1 &
 pids+=($!)
 client_gone() { ! kill -0 "${pids[1]}" 2>/dev/null || grep -qE 'Incompatible mods found|Could not execute entrypoint' "$WORK/client.log"; }
@@ -122,9 +106,7 @@ scx_tour() {
       grep -qF 'SeedcrackerX found the world seed' "$RUN/logs/latest.log" 2>/dev/null && return
       client_gone && return
       n=$(grep -c 'is at \[' "$SL")
-      case "$MC" in 1.18|1.18.1) say "execute positioned ${at% *} 0 ${at#* } run locate $kind" ;;
-        1.18.2) say "execute positioned ${at% *} 0 ${at#* } run locate minecraft:$kind" ;;
-        *) say "execute positioned ${at% *} 0 ${at#* } run locate structure minecraft:$kind" ;; esac
+      say "execute positioned ${at% *} 0 ${at#* } run locate structure minecraft:$kind"
       for _ in $(seq 20); do [ "$(grep -c 'is at \[' "$SL")" -gt "$n" ] && break; sleep 0.5; done
       [ "$(grep -c 'is at \[' "$SL")" -gt "$n" ] || continue
       line="$(grep -o 'is at \[-\?[0-9]*, ~, -\?[0-9]*\]' "$SL" | tail -1)"
@@ -177,7 +159,7 @@ LOADED="$(grep -a -m1 -oP 'SMOKE mod jar: \K.*' "$LOG" 2>/dev/null)"
 [ -z "${SMOKE_MOD:-}" ] || cmp -s "$LOADED" "$SMOKE_MOD" || PROBLEMS="$PROBLEMS; the loaded jar ${LOADED:-?} is not $SMOKE_MOD"
 case "$MODE" in
   planted) grep -qF '[Dripleaf] Spliced small dripleaf top half at 4 101 8' "$LOG" || PROBLEMS="$PROBLEMS; no chat line" ;;
-  search) case "$RESULT" in *"Lush caves only generate"*) ;; *) grep -qF '[Dripleaf] Spliced small dripleaf top half from the seed at' "$LOG" || PROBLEMS="$PROBLEMS; no announcement in chat" ;; esac ;;
+  search) grep -qF '[Dripleaf] Spliced small dripleaf top half from the seed at' "$LOG" || PROBLEMS="$PROBLEMS; no announcement in chat" ;;
   realworld) case "$RESULT" in *SPLICED*) grep -qF "[Dripleaf] Spliced small dripleaf top half at " "$LOG" || PROBLEMS="$PROBLEMS; no live chat line" ;; esac ;;
 esac
 SHOT="$(ls -t "$RUN"/screenshots/*.png 2>/dev/null | head -1)"

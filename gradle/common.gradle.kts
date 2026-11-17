@@ -32,8 +32,6 @@ fun metadata(autismVariant: Boolean) = mapOf(
     "mc_range" to prop("mc_range"),
     "java" to prop("java"),
     "autism_entry" to (if (autismVariant) ", \"autism\": [\"dripleaffinder.autism.AutismFront\"]" else ""),
-    "mixins" to (if (eras.any { repo.resolve("src/era/$it/resources/dripleaffinder.mixins.json").exists() })
-        "\n  \"mixins\": [\"dripleaffinder.mixins.json\"]," else ""),
 )
 
 tasks.named<ProcessResources>("processResources") {

@@ -42,8 +42,7 @@ final class SearchScenario implements Scenario {
             return;
         }
         String last = finder.search.lastResult, saved = saved();
-        boolean refused = !SearchCompat.SUPPORTED && last != null && last.startsWith("Lush caves only generate");
-        boolean ok = refused || last != null && last.startsWith("Seed search done") && !finder.search.hits.isEmpty()
+        boolean ok = last != null && last.startsWith("Seed search done") && !finder.search.hits.isEmpty()
             && finder.search.hits.keySet().stream().allMatch(pos -> saved.contains(pos.getX() + "\t" + pos.getY() + "\t" + pos.getZ() + "\ttop"));
         smoke.shoot(mc, (ok ? "PASS " : "FAIL ") + notes + last + " Saved: " + saved.replace('\n', '|'));
     }

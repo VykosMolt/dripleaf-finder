@@ -13,7 +13,7 @@ import net.minecraft.core.BlockPos;
 
 public final class Smoke implements ClientModInitializer {
     private Path out;
-    private String connect, result;
+    private String result;
     private Scenario scenario;
     private int shotAt = -1;
     int ticks, joinedAt = -1;
@@ -24,7 +24,6 @@ public final class Smoke implements ClientModInitializer {
         if (file == null) return;
         out = Path.of(file);
         FabricLoader.getInstance().getModContainer("dripleaf-finder").ifPresent(mod -> System.out.println("SMOKE mod jar: " + mod.getOrigin().getPaths().get(0)));
-        connect = System.getProperty("dripleaffinder.smoke.connect");
         double[] camera = Arrays.stream(System.getProperty("dripleaffinder.smoke.camera").split(",")).mapToDouble(Double::parseDouble).toArray();
         String search = System.getProperty("dripleaffinder.smoke.search"), realworld = System.getProperty("dripleaffinder.smoke.realworld");
         if (realworld != null) {
@@ -50,7 +49,6 @@ public final class Smoke implements ClientModInitializer {
             if (ticks - shotAt >= 60) finish(mc);
             return;
         }
-        if (connect != null && SmokeConnect.connect(mc, connect)) connect = null;
         if (mc.level == null || mc.player == null) {
             if (ticks > 20 * 300) shoot(mc, "FAIL never joined the test server");
             return;

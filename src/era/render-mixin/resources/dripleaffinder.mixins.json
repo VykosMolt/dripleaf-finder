@@ -1,7 +1,0 @@
-{
-  "required": true,
-  "package": "dripleaffinder.mixin",
-  "compatibilityLevel": "JAVA_21",
-  "client": ["LevelRendererMixin"],
-  "injectors": {"defaultRequire": 1}
-}

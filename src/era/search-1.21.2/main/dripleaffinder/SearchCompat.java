@@ -7,8 +7,6 @@ import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
 
 final class SearchCompat {
-    static final boolean SUPPORTED = true;
-
     static boolean lushNoise(ServerLevel level, int qx, int qy, int qz) {
         ServerChunkCache cache = level.getChunkSource();
         return cache.getGenerator().getBiomeSource().getNoiseBiome(qx, qy, qz, cache.randomState().sampler()).is(Biomes.LUSH_CAVES);
