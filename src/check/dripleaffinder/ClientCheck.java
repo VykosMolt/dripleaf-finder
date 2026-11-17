@@ -110,6 +110,11 @@ public final class ClientCheck {
                 SeedSearch.brief("Failed: a.b.Outer$Inner", 40), SeedSearch.brief("Failed: out of memory", 40)),
             java.util.List.of("Failed: IllegalStateException: Not enou…", "Could not start: UnknownHostException: …",
                 "Failed: Outer$Inner", "Failed: out of memory"));
+        java.util.List<String> menuRows = java.util.List.of(FinderMenu.candidates(3, ServerType.PAPER, true, 0),
+            FinderMenu.candidates(3, ServerType.FOLIA, true, 3), FinderMenu.candidates(1234, ServerType.FOLIA, true, 1000),
+            FinderMenu.candidates(1234, ServerType.PAPER, false, 0));
+        expect("candidates row", java.util.List.of(menuRows.get(0), menuRows.get(1), menuRows.stream().allMatch(row -> row.length() <= SeedSearch.STATUS_LENGTH)),
+            java.util.List.of("3 here · Paper/Spigot (auto)", "3 here · Folia (auto), 1 in 2 each", true));
         java.util.List<String> asides = java.util.stream.Stream.of("1.5", "15", "种子", "семя", "-42").map(Seeds::asideName).toList();
         expect("set-aside names", java.util.List.of(new HashSet<>(asides).size(), asides.get(1).startsWith("predictions-15-"),
                 asides.get(2).matches("predictions-[0-9a-f]{8}"), asides.get(4).matches("predictions--42-[0-9a-f]{8}"), Seeds.asideName("15")),

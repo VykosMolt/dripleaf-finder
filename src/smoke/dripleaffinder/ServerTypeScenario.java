@@ -64,9 +64,10 @@ final class ServerTypeScenario implements Scenario {
         finder.boxes(mc.player.getX(), mc.player.getY(), mc.player.getZ(), (box, color) -> {
             if (color == Finder.PREDICTED_COLOR) drawn[0]++;
         });
-        String status = model.status(), text = finder.text(ordered);
-        String label = text.contains(Guidance.FOLIA_ODDS) && status.contains("candidates") ? "folia"
-            : text.contains("walk in from") && !status.contains("Folia") ? "paper" : "mixed";
-        return finder.predicted.size() + " drawn " + drawn[0] + " " + label + ", status \"" + status + "\", \"" + text + "\"";
+        String candidates = model.candidates(), text = finder.text(ordered);
+        String label = text.contains(Guidance.FOLIA_ODDS) && candidates.contains(Guidance.FOLIA_ODDS) ? "folia"
+            : text.contains("walk in from") && !candidates.contains("Folia") ? "paper" : "mixed";
+        return finder.predicted.size() + " drawn " + drawn[0] + " " + label + ", status \"" + model.status() + "\", candidates \"" + candidates
+            + "\", \"" + text + "\"";
     }
 }

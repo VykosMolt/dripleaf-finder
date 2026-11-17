@@ -30,6 +30,7 @@ final class SplicedDripleaf extends SimpleModule {
             .unit("blocks"));
         add(new IntSetting("memory", "Search Memory", model.defaultMemoryGb(), 1, model.maxMemoryGb(), 1).unit("GB"));
         add(new StringSetting("status", "Status", "").readonlySummary());
+        add(new StringSetting("candidates", "Candidates", "").readonlySummary());
         add(new ActionSetting("search", "Seed Search", model::search).buttonLabel("Search").requiresWorld()
             .visibleWhen(() -> !model.searching()));
         add(new ActionSetting("stop", "Seed Search", model::stop).buttonLabel("Stop").visibleWhen(model::searching));
@@ -68,6 +69,7 @@ final class SplicedDripleaf extends SimpleModule {
             case "radius" -> String.valueOf(model.radius());
             case "memory" -> String.valueOf(model.memoryGb());
             case "status" -> model.status();
+            case "candidates" -> model.candidates();
             default -> null;
         };
     }
@@ -89,7 +91,7 @@ final class SplicedDripleaf extends SimpleModule {
             }
             case "radius" -> model.setRadius(Integer.parseInt(value));
             case "memory" -> model.setMemoryGb(Integer.parseInt(value));
-            case "status" -> {
+            case "status", "candidates" -> {
             }
             default -> {
                 return false;

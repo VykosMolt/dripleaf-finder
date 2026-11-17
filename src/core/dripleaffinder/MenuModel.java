@@ -62,6 +62,8 @@ public interface MenuModel {
 
     String status();
 
+    String candidates();
+
     boolean searching();
 
     void search();

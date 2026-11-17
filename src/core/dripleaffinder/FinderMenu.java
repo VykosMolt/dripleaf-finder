@@ -131,10 +131,20 @@ final class FinderMenu implements MenuModel {
     }
 
     public String status() {
-        String text = finder.search.status();
-        long candidates = inWorld() && finder.folia ? finder.candidates() : 0;
-        if (candidates == 0) return text;
-        return text + " | Folia" + (finder.seeds.typedServerType() == null ? " (auto)" : "") + ": " + candidates + " candidates, " + Guidance.FOLIA_ODDS + " each";
+        return finder.search.status();
+    }
+
+    public String candidates() {
+        if (!inWorld()) return "";
+        if (!enabled()) return "Finder off";
+        return candidates(finder.predicted.size(), finder.seeds.serverType()[0], finder.seeds.typedServerType() == null,
+            finder.folia ? finder.candidates() : 0);
+    }
+
+    static String candidates(int here, String type, boolean auto, long chance) {
+        String text = here + " here · " + type + (auto ? " (auto)" : "");
+        if (chance == 0) return text;
+        return text + ", " + (chance == here ? Guidance.FOLIA_ODDS + " each" : chance + " at " + Guidance.FOLIA_ODDS);
     }
 
     public boolean searching() {
