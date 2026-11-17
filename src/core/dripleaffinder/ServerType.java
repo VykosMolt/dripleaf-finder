@@ -11,12 +11,6 @@ final class ServerType {
         return brand != null && brand.toLowerCase(Locale.ROOT).contains("folia") ? FOLIA : PAPER;
     }
 
-    static String hiddenNote(long hidden, long total) {
-        if (hidden == 0) return "";
-        return "Folia: " + hidden + " of " + total + " predictions " + (hidden == 1 ? "depends on chunk order and is hidden."
-            : "depend on chunk order and are hidden.");
-    }
-
     private ServerType() {
     }
 }

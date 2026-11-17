@@ -202,7 +202,6 @@ public final class Seeds {
         }
         finder.checkServerType();
         String[] t = serverType();
-        String note = finder.hiddenNote();
-        Finder.message("Server Type for " + key + ": " + t[0] + " (" + t[1] + ")." + (note.isEmpty() ? "" : " " + note));
+        Finder.message("Server Type for " + key + ": " + t[0] + " (" + t[1] + ").");
     }
 }

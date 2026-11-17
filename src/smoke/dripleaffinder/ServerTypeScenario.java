@@ -31,19 +31,18 @@ final class ServerTypeScenario implements Scenario {
             return;
         }
         finder.reloadData();
+        BlockPos ordered = new BlockPos(at.getX() + 64, -49, at.getZ());
         List<String> views = new ArrayList<>();
-        views.add(view(mc, model, finder));
+        views.add(view(mc, model, finder, ordered));
         for (String type : List.of("Folia", "Paper/Spigot", MenuModel.AUTO)) {
             model.setServerType(type);
-            views.add(view(mc, model, finder));
+            views.add(view(mc, model, finder, ordered));
             if (type.equals("Folia")) finder.listNearest();
         }
-        boolean folia = expected.equals("Folia");
-        String two = "2/5 drawn 2", five = "5/5 drawn 5";
-        List<String> want = List.of(folia ? two : five, two, five, folia ? two : five);
+        String folia = "5 drawn 5 folia", paper = "5 drawn 5 paper", auto5 = expected.equals("Folia") ? folia : paper;
         List<String> got = views.stream().map(v -> v.substring(0, v.indexOf(','))).toList();
-        boolean ok = auto.equals(expected) && got.equals(want) && model.serverType().equals(MenuModel.AUTO);
-        smoke.shoot(mc, (ok ? "PASS" : "FAIL") + " brand \"" + brand + "\" -> " + auto + " (want " + expected + "); shown/drawn of 5"
+        boolean ok = auto.equals(expected) && got.equals(List.of(auto5, folia, paper, auto5)) && model.serverType().equals(MenuModel.AUTO);
+        smoke.shoot(mc, (ok ? "PASS" : "FAIL") + " brand \"" + brand + "\" -> " + auto + " (want " + expected + "); kept/drawn of 5 and labels"
             + " for Auto, Folia, Paper/Spigot, Auto: " + String.join(" ; ", views));
     }
 
@@ -60,11 +59,14 @@ final class ServerTypeScenario implements Scenario {
         Files.write(file, lines);
     }
 
-    private static String view(Minecraft mc, MenuModel model, Finder finder) {
+    private static String view(Minecraft mc, MenuModel model, Finder finder, BlockPos ordered) {
         int[] drawn = {0};
         finder.boxes(mc.player.getX(), mc.player.getY(), mc.player.getZ(), (box, color) -> {
             if (color == Finder.PREDICTED_COLOR) drawn[0]++;
         });
-        return finder.shown().size() + "/" + finder.predicted.size() + " drawn " + drawn[0] + ", status \"" + model.status() + "\"";
+        String status = model.status(), text = finder.text(ordered);
+        String label = text.contains(Guidance.FOLIA_ODDS) && status.contains("candidates") ? "folia"
+            : text.contains("walk in from") && !status.contains("Folia") ? "paper" : "mixed";
+        return finder.predicted.size() + " drawn " + drawn[0] + " " + label + ", status \"" + status + "\", \"" + text + "\"";
     }
 }

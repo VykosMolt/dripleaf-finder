@@ -57,12 +57,12 @@ public final class ClientCheck {
             java.util.List.of("play.example.org", "local-new_world__2_", "local", "local", "play.example.org_25601", "play.example.org"));
 
         expect("splice guidance", java.util.List.of(
-            Guidance.text(3705, 62, "air", "231,3", "232,3"),
-            Guidance.text(3705, 62, "cave_air", "230,2", "231,3"),
-            Guidance.text(3705, 62, "smooth_basalt", "231,3", "231,3"),
-            Guidance.text(3705, 62, "smooth_basalt", "-", "-"),
-            Guidance.text(3705, 62, "air", "231,3", "-"),
-            Guidance.text(3705, 62, "air", "231,3", "x,3"),
+            Guidance.text(3705, 62, "air", "231,3", "232,3", false),
+            Guidance.text(3705, 62, "cave_air", "230,2", "231,3", false),
+            Guidance.text(3705, 62, "smooth_basalt", "231,3", "231,3", false),
+            Guidance.text(3705, 62, "smooth_basalt", "-", "-", false),
+            Guidance.text(3705, 62, "air", "231,3", "-", false),
+            Guidance.text(3705, 62, "air", "231,3", "x,3", false),
             String.valueOf(Guidance.approach("231,3", "-")),
             Guidance.direction(0, -1) + " " + Guidance.direction(1, 1)),
             java.util.List.of(
@@ -89,15 +89,17 @@ public final class ClientCheck {
             "148\t40\t200\ttop\tair\tasc\tyes\t300", "164\t40\t200\ttop\tcave_air\tdesc\tyes\t300\t10,12\t10,12")
             .map(Prediction::parse).toList();
         java.util.List<Integer> anyOrder = rows.stream().filter(Prediction::anyOrder).map(row -> row.pos().getX()).toList();
-        expect("folia filtering", java.util.List.of(rows.size(), anyOrder, ServerType.hiddenNote(rows.size() - anyOrder.size(), rows.size()),
-                ServerType.hiddenNote(1, 2), ServerType.hiddenNote(0, 5)),
-            java.util.List.of(5, java.util.List.of(100, 164), "Folia: 3 of 5 predictions depend on chunk order and are hidden.",
-                "Folia: 1 of 2 predictions depends on chunk order and is hidden.", ""));
+        String folia = "Folia: about " + Guidance.FOLIA_ODDS + " (random chunk order)";
+        expect("folia guidance", java.util.List.of(rows.size(), anyOrder, rows.stream().map(row -> row.text(true)).toList(), rows.get(1).text(false)),
+            java.util.List.of(5, java.util.List.of(100, 164), java.util.List.of("top half, cut by a geode; real in any chunk order",
+                    "top half, cut by a geode; " + folia, "top half, cut by a geode; " + folia, "top half, asc",
+                    "top half, cut by a mineshaft or trial chamber corridor; real in any chunk order"),
+                "top half, cut by a geode; real only if its own chunk generated before the chunk to its east (in unexplored land: walk in from the west)"));
         expect("host names", java.util.List.of(DataKey.host("Java.HugoSMP.net:25565"), DataKey.host("hugosmp.net."),
                 DataKey.host(null), DataKey.host(".."), DataKey.host("[::1]:25565")),
             java.util.List.of("java.hugosmp.net", "hugosmp.net", "local", "unknown", "unknown"));
 
         System.out.println("CLIENT CHECK PASSED: 2 azalea trees, trunkless leaves dropped; data rows, box edges, memory, data keys, host names,"
-            + " server versions, server types, folia filtering, splice guidance");
+            + " server versions, server types, folia guidance, splice guidance");
     }
 }

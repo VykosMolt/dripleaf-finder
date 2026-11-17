@@ -133,13 +133,9 @@ final class FinderMenu implements MenuModel {
 
     public String status() {
         String text = finder.search.status();
-        if (!inWorld()) return text;
-        String brand = Seeds.brand();
-        if (finder.seeds.typedServerType() == null) {
-            text += " | Auto: " + finder.seeds.serverType()[0] + " (" + (brand == null ? "no brand" : "\"" + brand + "\"") + ")";
-        }
-        long hidden = finder.hiddenCount();
-        return hidden == 0 ? text : text + " | Folia: " + hidden + " of " + finder.predicted.size() + " hidden (chunk order)";
+        long candidates = inWorld() && finder.folia ? finder.candidates() : 0;
+        if (candidates == 0) return text;
+        return text + " | Folia" + (finder.seeds.typedServerType() == null ? " (auto)" : "") + ": " + candidates + " candidates, " + Guidance.FOLIA_ODDS + " each";
     }
 
     public boolean searching() {
