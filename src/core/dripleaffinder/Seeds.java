@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
@@ -46,9 +48,22 @@ public final class Seeds {
     }
 
     private void write(String key, String name, String value) throws IOException {
-        Files.createDirectories(file(key, name).getParent());
-        if (value == null) Files.deleteIfExists(file(key, name));
-        else Files.writeString(file(key, name), value + "\n");
+        Path target = file(key, name);
+        Files.createDirectories(target.getParent());
+        if (value == null) Files.deleteIfExists(target);
+        else {
+            Path part = Files.createTempFile(target.getParent(), name, ".part");
+            try {
+                Files.writeString(part, value + "\n");
+                try {
+                    Files.move(part, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+                } catch (AtomicMoveNotSupportedException e) {
+                    Files.move(part, target, StandardCopyOption.REPLACE_EXISTING);
+                }
+            } finally {
+                Files.deleteIfExists(part);
+            }
+        }
         if (key.equals(cachedKey)) cached.put(name, Data.read(file(key, name)));
     }
 
@@ -61,20 +76,19 @@ public final class Seeds {
         return typed != null ? typed : read(key, "seedcracker.txt");
     }
 
-    private void seedChanged(String key, String before) {
-        if (Objects.equals(before, seed(key))) return;
-        finder.search.stopFor(key, "Stopped: seed changed");
-        setAside(key, before, "the previous seed");
-    }
-
-    private void setAside(String key, String seed, String from) {
+    private void change(String key, String name, String value, boolean changed, String from) throws IOException {
+        if (changed || name.equals("version.txt")) finder.search.stopFor(key, "Stopped: " + (name.equals("version.txt") ? "version" : "seed") + " changed");
         Path folder = Finder.DATA.resolve(key);
+        String before = seed(key);
+        List<Path> moved = changed && before != null ? setAside(folder, before) : List.of();
         try {
-            if (seed != null && !setAside(folder, seed).isEmpty()) Finder.message("Predictions and lush caves of " + from + " set aside in " + folder + ".");
+            write(key, name, value);
         } catch (IOException e) {
-            Finder.message("Could not set aside the predictions and lush caves of " + from + " (" + e.getClass().getSimpleName() + ").");
+            restore(moved, e);
+            throw e;
         }
-        if (key.equals(finder.memory.key())) finder.resetPredictions();
+        if (!moved.isEmpty()) Finder.message("Predictions and lush caves of " + from + " set aside in " + folder + ".");
+        if (changed && key.equals(finder.memory.key())) finder.resetPredictions();
     }
 
     static List<Path> setAside(Path folder, String seed) throws IOException {
@@ -84,11 +98,27 @@ public final class Seeds {
             suffix = "-" + n;
         }
         List<Path> moved = new ArrayList<>();
-        for (String file : List.of("predictions", "lush")) {
-            Path saved = folder.resolve(file + ".tsv");
-            if (Files.exists(saved)) moved.add(Files.move(saved, folder.resolve(asideName(file, seed) + suffix + ".tsv")));
+        try {
+            for (String file : List.of("predictions", "lush")) {
+                Path saved = folder.resolve(file + ".tsv");
+                if (Files.exists(saved)) moved.add(Files.move(saved, folder.resolve(asideName(file, seed) + suffix + ".tsv")));
+            }
+        } catch (IOException e) {
+            restore(moved, e);
+            throw e;
         }
         return moved;
+    }
+
+    private static void restore(List<Path> moved, IOException failure) {
+        for (Path aside : moved) {
+            String name = aside.getFileName().toString().split("-", 2)[0];
+            try {
+                Files.move(aside, aside.resolveSibling(name + ".tsv"));
+            } catch (IOException e) {
+                failure.addSuppressed(e);
+            }
+        }
     }
 
     static String asideName(String file, String seed) {
@@ -115,13 +145,13 @@ public final class Seeds {
         if (Objects.equals(seed, read(key, "seed.txt"))) return;
         try {
             String before = seed(key);
-            write(key, "seed.txt", seed);
-            seedChanged(key, before);
+            String after = seed != null ? seed : read(key, "seedcracker.txt");
+            change(key, "seed.txt", seed, !Objects.equals(before, after), "the previous seed");
             String cracked = read(key, "seedcracker.txt");
             Finder.message(seed == null ? "World Seed cleared for " + key + (cracked != null ? "; SeedcrackerX's seed is used." : ".")
                 : "World Seed saved for " + key + ".");
         } catch (IOException e) {
-            Finder.message("Could not save the seed: " + e.getMessage());
+            Finder.message("Could not save the seed (" + e.getClass().getSimpleName() + ").");
         }
     }
 
@@ -131,9 +161,9 @@ public final class Seeds {
         if (key == null) return;
         String before = seed(), typed = typedSeed();
         try {
-            write(key, "seedcracker.txt", seed);
+            change(key, "seedcracker.txt", seed, typed == null && !Objects.equals(before, seed), "the previous seed");
         } catch (IOException e) {
-            Finder.message("Could not save " + source + "'s seed: " + e.getMessage());
+            Finder.message("Could not save " + source + "'s seed (" + e.getClass().getSimpleName() + ").");
             return;
         }
         if (typed != null && !typed.equals(seed)) {
@@ -146,7 +176,6 @@ public final class Seeds {
             return;
         }
         Finder.message(source + " found the world seed.");
-        seedChanged(key, before);
         finder.search.startOrQueue(mc, key);
     }
 
@@ -158,7 +187,11 @@ public final class Seeds {
     }
 
     String[] generationVersion() {
-        String key = key(), typed = read(key, "version.txt");
+        String key = key();
+        return generationVersion(key, read(key, "version.txt"));
+    }
+
+    private String[] generationVersion(String key, String typed) {
         if (typed != null) return new String[] {typed, "typed"};
         String server = key == null ? null : finder.serverVersion.reported(key);
         if (server != null && !server.isEmpty()) return new String[] {server, "reported by the server"};
@@ -184,12 +217,10 @@ public final class Seeds {
         if (Objects.equals(version, read(key, "version.txt"))) return;
         try {
             String before = generationVersion()[0];
-            write(key, "version.txt", version);
-            finder.search.stopFor(key, "Stopped: version changed");
-            if (!before.equals(generationVersion()[0])) setAside(key, seed(key), "the previous World Version");
+            change(key, "version.txt", version, !before.equals(generationVersion(key, version)[0]), "the previous World Version");
             showVersion();
         } catch (IOException e) {
-            Finder.message("Could not save the version: " + e.getMessage());
+            Finder.message("Could not save the version (" + e.getClass().getSimpleName() + ").");
         }
     }
 
