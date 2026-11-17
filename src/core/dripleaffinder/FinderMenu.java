@@ -2,6 +2,7 @@ package dripleaffinder;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import net.minecraft.client.Minecraft;
 
@@ -14,16 +15,12 @@ final class FinderMenu implements MenuModel {
         settings = finder.settings;
     }
 
-    public boolean enabled() {
-        return finder.enabled();
+    public void follow(BooleanSupplier enabled, Consumer<Boolean> turn) {
+        finder.follow(enabled, turn);
     }
 
-    public void setEnabled(boolean on) {
-        finder.setEnabled(on);
-    }
-
-    public void onEnabledChanged(Consumer<Boolean> listener) {
-        finder.onEnabledChanged(listener);
+    public void turnedOff() {
+        finder.turnedOff();
     }
 
     public boolean masked() {
@@ -136,7 +133,7 @@ final class FinderMenu implements MenuModel {
 
     public String candidates() {
         if (!inWorld()) return "";
-        if (!enabled()) return "Finder off";
+        if (!finder.enabled()) return "Finder off";
         return candidates(finder.predicted.size(), finder.seeds.serverType()[0], finder.seeds.typedServerType() == null);
     }
 

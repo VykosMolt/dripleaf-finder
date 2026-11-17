@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
@@ -43,7 +44,8 @@ public final class Finder {
     final Memory memory = new Memory();
     private ClientLevel level;
     private int ticks;
-    private Consumer<Boolean> enabledListener;
+    private BooleanSupplier enabled;
+    private Consumer<Boolean> turn;
 
     public final Seeds seeds = new Seeds(this);
     public final SeedSearch search = new SeedSearch(this);
@@ -53,27 +55,26 @@ public final class Finder {
         this.settings = settings;
     }
 
-    public void onEnabledChanged(Consumer<Boolean> listener) {
-        enabledListener = listener;
+    void follow(BooleanSupplier enabled, Consumer<Boolean> turn) {
+        this.enabled = enabled;
+        this.turn = turn;
     }
 
     public boolean enabled() {
-        return settings.enabled;
+        return enabled != null && enabled.getAsBoolean();
     }
 
     public void setEnabled(boolean on) {
-        if (settings.enabled == on) return;
-        settings.enabled = on;
-        settings.save();
-        if (!on) {
-            clearWorld();
-            memory.forget();
-        }
-        if (enabledListener != null) enabledListener.accept(on);
+        if (turn != null) turn.accept(on);
+    }
+
+    void turnedOff() {
+        clearWorld();
+        memory.forget();
     }
 
     public void toggle() {
-        setEnabled(!settings.enabled);
+        setEnabled(!enabled());
     }
 
     public void setMasked(boolean on) {
@@ -97,7 +98,7 @@ public final class Finder {
     }
 
     void status() {
-        message("Dripleaf Finder " + (settings.enabled ? "on" : "off") + " | masked server " + (settings.masked ? "yes" : "no")
+        message("Dripleaf Finder " + (enabled() ? "on" : "off") + " | masked server " + (settings.masked ? "yes" : "no")
             + " | lush caves " + (settings.lush ? lush.size() + " known" : "off")
             + " | azalea " + (settings.azalea ? "on" : "off") + " | predictions " + predicted.size()
             + ". Commands: /dripleaf on|off, masked on|off, azalea on|off, lush [on|off], predictions, seed [<seed>|clear], version [<version>|auto], search [<radius>|stop]");
@@ -191,7 +192,7 @@ public final class Finder {
     }
 
     private String whyEmpty(String none, String noneKnown) {
-        if (!settings.enabled) return none + ". The finder is off.";
+        if (!enabled()) return none + ". The finder is off.";
         if (level == null) return none + ". Join a world first.";
         if (!Compat.overworld(level)) return none + ". Only kept for the Overworld.";
         return noneKnown + " for " + memory.key() + " yet. Set World Seed and press Seed Search.";
@@ -219,7 +220,7 @@ public final class Finder {
     }
 
     void tick(Minecraft mc) {
-        if (!settings.enabled) return;
+        if (!enabled()) return;
         if (mc.level == null || mc.player == null) {
             if (level != null) clearWorld();
             return;
@@ -284,7 +285,7 @@ public final class Finder {
 
     public void boxes(double camX, double camY, double camZ, BoxSink sink) {
         Minecraft mc = Minecraft.getInstance();
-        if (!settings.enabled || level == null || Compat.hudHidden(mc)) return;
+        if (!enabled() || level == null || Compat.hudHidden(mc)) return;
         double range = (double) DRAW_RANGE * DRAW_RANGE;
         for (BlockPos pos : found) sink.box(new AABB(pos), COLOR);
         if (settings.lush) {

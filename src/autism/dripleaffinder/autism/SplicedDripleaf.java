@@ -7,11 +7,9 @@ import autismclient.api.module.IntSetting;
 import autismclient.api.module.SimpleModule;
 import autismclient.api.module.StringSetting;
 import dripleaffinder.MenuModel;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 
 final class SplicedDripleaf extends SimpleModule {
     private final MenuModel model;
-    private boolean inWorld;
 
     SplicedDripleaf(MenuModel model) {
         super("spliced", "Spliced Dripleaf Finder", "Finds spliced small dripleaf.");
@@ -35,12 +33,7 @@ final class SplicedDripleaf extends SimpleModule {
         add(new ActionSetting("search", "Seed Search", model::search).buttonLabel("Search").requiresWorld()
             .visibleWhen(() -> !model.searching()));
         add(new ActionSetting("stop", "Seed Search", model::stop).buttonLabel("Stop").visibleWhen(model::searching));
-        model.onEnabledChanged(this::setEnabledSilently);
-        ClientTickEvents.END_CLIENT_TICK.register(mc -> {
-            boolean joined = mc.player != null;
-            if (joined && !inWorld) model.setEnabled(isEnabled());
-            inWorld = joined;
-        });
+        model.follow(this::isEnabled, this::setEnabled);
     }
 
     @Override
@@ -49,13 +42,8 @@ final class SplicedDripleaf extends SimpleModule {
     }
 
     @Override
-    public void onEnable() {
-        model.setEnabled(true);
-    }
-
-    @Override
     public void onDisable() {
-        model.setEnabled(false);
+        model.turnedOff();
     }
 
     @Override

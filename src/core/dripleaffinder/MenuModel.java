@@ -1,6 +1,7 @@
 package dripleaffinder;
 
 import java.util.List;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 
 public interface MenuModel {
@@ -8,11 +9,9 @@ public interface MenuModel {
     int MIN_RADIUS = 64, MAX_RADIUS = SeedSearch.MAX_RADIUS, RADIUS_STEP = 64;
     int DEFAULT_RADIUS = Math.round(SeedSearch.DEFAULT_RADIUS / (float) RADIUS_STEP) * RADIUS_STEP;
 
-    boolean enabled();
+    void follow(BooleanSupplier enabled, Consumer<Boolean> turn);
 
-    void setEnabled(boolean on);
-
-    void onEnabledChanged(Consumer<Boolean> listener);
+    void turnedOff();
 
     boolean masked();
 
