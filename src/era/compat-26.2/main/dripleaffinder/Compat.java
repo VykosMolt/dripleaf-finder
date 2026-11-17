@@ -1,5 +1,7 @@
 package dripleaffinder;
 
+import java.io.IOException;
+import java.nio.file.Path;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.toasts.SystemToast;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -26,7 +28,12 @@ final class Compat {
 
     static String singleplayerWorld(Minecraft mc) {
         if (mc.getSingleplayerServer() == null) return null;
-        return mc.getSingleplayerServer().getWorldPath(LevelResource.ROOT).toAbsolutePath().normalize().getFileName().toString();
+        Path folder = mc.getSingleplayerServer().getWorldPath(LevelResource.ROOT).toAbsolutePath().normalize();
+        try {
+            return folder.toRealPath().toString();
+        } catch (IOException e) {
+            return folder.toString();
+        }
     }
 
     static boolean hudHidden(Minecraft mc) {

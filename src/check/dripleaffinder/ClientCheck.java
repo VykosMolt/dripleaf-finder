@@ -60,7 +60,13 @@ public final class ClientCheck {
         expect("data keys", java.util.List.of(DataKey.of("Play.Example.org:25565", null),
                 DataKey.of(null, "New World (2)"), DataKey.of(null, null), DataKey.of(null, ".."),
                 DataKey.of("play.example.org:25601", null), DataKey.of("play.example.org", null)),
-            java.util.List.of("play.example.org", "local-new_world__2_", "local", "local", "play.example.org_25601", "play.example.org"));
+            java.util.List.of("play.example.org", "local-new_world__2_-df9b4745bd0c6fab2c3d386b91d20112", "local", "local", "play.example.org_25601", "play.example.org"));
+        java.util.List<String> worlds = java.util.List.of("世界", "种子", "New World", "New_World", "New World", "new world", "é", "e\u0301",
+            "/saves/one/world", "/saves/two/world", "a".repeat(254) + "b", "a".repeat(254) + "c");
+        java.util.List<String> worldKeys = worlds.stream().map(world -> DataKey.of(null, world)).toList();
+        expect("singleplayer identities", java.util.List.of(new HashSet<>(worldKeys).size(), worldKeys.get(2).equals(worldKeys.get(4)),
+                worldKeys.stream().allMatch(key -> key.matches("local-[a-z0-9._-]+-[a-f0-9]{32}")),
+                DataKey.of(null, "a".repeat(300)).length() < 255), java.util.List.of(11, true, true, true));
 
         expect("splice guidance", java.util.List.of(
             Guidance.text(3705, 62, "air", "231,3", "232,3"),
@@ -100,14 +106,16 @@ public final class ClientCheck {
         expect("host names", java.util.List.of(DataKey.host("Java.HugoSMP.net:25565"), DataKey.host("hugosmp.net."),
                 DataKey.host(null), DataKey.host(".."), DataKey.host("[::1]:25565"), DataKey.of("[2001:DB8::1]:25565", null),
                 DataKey.of("[2001:db8::2]:25566", null), DataKey.of("2001:db8::3", null), DataKey.of("майн.рф", null),
-                DataKey.of("МАЙН.РФ:25570", null), DataKey.host("example.com:abc")),
+                DataKey.of("МАЙН.РФ:25570", null), DataKey.host("example.com:abc"), DataKey.of("[fe80::1%1]", null),
+                DataKey.of("[fe80::2%1]:25566", null), DataKey.of("[fe80::1%eth0]", null), DataKey.of("[fe80::1%ETH0]", null)),
             java.util.List.of("java.hugosmp.net", "hugosmp.net", "local", "unknown", "[__1]", "[2001_db8__1]", "[2001_db8__2]_25566",
-                "[2001_db8__3]", "xn--80ashg.xn--p1ai", "xn--80ashg.xn--p1ai_25570", "unknown"));
+                "[2001_db8__3]", "xn--80ashg.xn--p1ai", "xn--80ashg.xn--p1ai_25570", "unknown", "[fe80__1_scope_31]",
+                "[fe80__2_scope_31]_25566", "[fe80__1_scope_65746830]", "[fe80__1_scope_45544830]"));
         expect("windows device names", java.util.List.of(DataKey.of("CON", null), DataKey.of("aux.example.net:25601", null), DataKey.of("nul.", null),
                 DataKey.of("com1", null), DataKey.of("lpt9.example.net", null), DataKey.of("com10.net", null), DataKey.of("console.net", null),
                 DataKey.of("example.aux", null), DataKey.of(null, "con")),
             java.util.List.of("_con", "_aux.example.net_25601", "_nul", "_com1", "_lpt9.example.net", "com10.net", "console.net", "example.aux",
-                "local-con"));
+                "local-con-1143da2bc54c495c4be31d3868785d39"));
         long gib = 1L << 30;
         expect("search memory", java.util.Arrays.asList(Settings.memoryGb(null, 32 * gib), Settings.memoryGb(null, 15 * gib + gib / 2),
                 Settings.memoryGb(null, 8 * gib), Settings.memoryGb(null, 4 * gib), Settings.memoryGb(null, 2 * gib), Settings.memoryGb(12, 8 * gib),
