@@ -129,6 +129,6 @@ final class FinderMenu implements MenuModel {
     }
 
     public void stop() {
-        finder.search.stop();
+        finder.search.stop(false);
     }
 }

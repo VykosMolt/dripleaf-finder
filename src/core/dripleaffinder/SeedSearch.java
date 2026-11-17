@@ -208,9 +208,9 @@ public final class SeedSearch {
         return running() && key.equals(this.key);
     }
 
-    public void stop() {
+    public void stop(boolean fromCommand) {
         if (!running()) {
-            Finder.message("No seed search is running.");
+            if (fromCommand) Finder.message("No seed search is running.");
             return;
         }
         generation++;
@@ -220,8 +220,7 @@ public final class SeedSearch {
         if (pending != null) kill(pending.launched);
         runs.clear();
         pendingKey = null;
-        lastResult = "Stopped";
-        Finder.message("Seed search stopped.");
+        refuse("Stopped", "Seed search stopped.", fromCommand);
     }
 
     private void kill(List<SearchRun> stopping) {
