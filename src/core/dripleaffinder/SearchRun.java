@@ -18,7 +18,7 @@ import java.util.stream.Stream;
 import net.minecraft.core.BlockPos;
 
 final class SearchRun {
-    static final int EXIT_WAIT_SECONDS = 30, DELETE_ATTEMPTS = 8;
+    static final int EXIT_WAIT_SECONDS = 30, DELETE_ATTEMPTS = 8, OUT_OF_MEMORY_EXIT = 3;
     static final List<String> ORDERS = List.of("asc", "desc");
 
     final String order;
@@ -34,8 +34,12 @@ final class SearchRun {
         this.process = process;
     }
 
+    static int heapMb(int radius) {
+        return 1024 + radius / 3;
+    }
+
     static int serverMb(int radius) {
-        return 1536 + radius;
+        return heapMb(radius) + 800;
     }
 
     static Path searches(Path gameDir) {
@@ -75,8 +79,9 @@ final class SearchRun {
             spec.store(out, null);
         }
         Files.writeString(dir.resolve("results.tsv"), "");
-        List<String> command = List.of(ProcessHandle.current().info().command().orElse("java"), "-Xmx" + serverMb(radius) + "M",
-            "-Dfabric.gameJarPath=" + launch.gameJar(), "-Dfabric.addMods=" + String.join(File.pathSeparator, launch.mods().stream().map(Path::toString).toList()),
+        List<String> command = List.of(ProcessHandle.current().info().command().orElse("java"), "-Xmx" + heapMb(radius) + "M",
+            "-XX:+ExitOnOutOfMemoryError", "-Dfabric.gameJarPath=" + launch.gameJar(),
+            "-Dfabric.addMods=" + String.join(File.pathSeparator, launch.mods().stream().map(Path::toString).toList()),
             "-Ddripleaffinder.search=" + dir.resolve("search.properties"), "-cp", String.join(File.pathSeparator, launch.classpath()),
             "net.fabricmc.loader.impl.launch.knot.KnotServer", "nogui");
         Process process = new ProcessBuilder(command).directory(dir.toFile()).redirectErrorStream(true)
