@@ -14,21 +14,22 @@ final class SplicedDripleaf extends SimpleModule {
     private boolean inWorld;
 
     SplicedDripleaf(MenuModel model) {
-        super("spliced", "Spliced Dripleaf Finder", "Finds small dripleaf top halves that have no bottom half.");
+        super("spliced", "Spliced Dripleaf Finder", "Finds spliced small dripleaf.");
         this.model = model;
         add(new BoolSetting("masked", "Masked Server", false));
         add(new ActionSetting("nearest", "Nearest Predictions", model::listPredictions).buttonLabel("List").requiresWorld());
         add(new BoolSetting("lush", "Lush Cave Pings", true));
         add(new ActionSetting("nearestLush", "Nearest Lush Caves", model::listLush).buttonLabel("List").requiresWorld());
         add(new BoolSetting("azalea", "Azalea Trees", true));
-        add(new StringSetting("seed", "World Seed", "").description("Wins over SeedcrackerX. Enter saves.").requiresWorld().keepOnReset());
+        add(new StringSetting("seed", "World Seed", "").description("Press Enter to save.").requiresWorld().keepOnReset());
         add(new ChoiceSetting("version", "World Version", MenuModel.AUTO, model.versions())
-            .description("Auto: the version the server reports.").requiresWorld().keepOnReset());
+            .description("Auto: server's version.").requiresWorld().keepOnReset());
         add(new ChoiceSetting("serverType", "Server Type", MenuModel.AUTO, model.serverTypes())
-            .description("Auto: from the server's brand.").requiresWorld().keepOnReset());
+            .description("Auto: server's brand.").requiresWorld().keepOnReset());
         add(new IntSetting("radius", "Search Radius", MenuModel.DEFAULT_RADIUS, MenuModel.MIN_RADIUS, MenuModel.MAX_RADIUS, MenuModel.RADIUS_STEP)
             .unit("blocks"));
-        add(new IntSetting("memory", "Search Memory", model.defaultMemoryGb(), 1, model.maxMemoryGb(), 1).unit("GB"));
+        add(new IntSetting("memory", "Search Memory", model.defaultMemoryGb(), 1, model.maxMemoryGb(), 1).unit("GB")
+            .description("For the background search."));
         add(new StringSetting("status", "Status", "").readonlySummary());
         add(new StringSetting("candidates", "Candidates", "").readonlySummary());
         add(new ActionSetting("search", "Seed Search", model::search).buttonLabel("Search").requiresWorld()
