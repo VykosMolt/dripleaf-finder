@@ -1,2 +1,2 @@
-1.21.11	21	0.141.6+1.21.11	remap	compat-1.21.11,render-world,lines-1.21.11,ui-kb,shaders-1.21.11,chunk-1.21.9,search-1.21.2,smoke-main
-26.2	25	0.161.0+26.2	unobf	compat-26.2,render-level,lines-26.2,ui-26,shaders-1.21.11,chunk-1.21.9,search-1.21.2,smoke-26.2	autism=true,autism_jar=~/.local/share/PrismLauncher/instances/Autism/minecraft/mods/AUTISM Client-5.3-26.2-obf.jar
+1.21.11	21	0.141.6+1.21.11	remap	compat-1.21.11,render-1.21.11,lines-1.21.11,ui-1.21.11,smoke-1.21.11
+26.2	25	0.161.0+26.2	unobf	compat-26.2,render-26.2,lines-26.2,ui-26.2,smoke-26.2	autism=true,autism_jar=~/.local/share/PrismLauncher/instances/Autism/minecraft/mods/AUTISM Client-5.3-26.2-obf.jar
