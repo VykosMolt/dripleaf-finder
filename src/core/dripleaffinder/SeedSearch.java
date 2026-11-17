@@ -249,11 +249,16 @@ public final class SeedSearch {
         for (SearchRun run : runs) for (String line : run.newLines()) handle(mc, run, line);
         kill(runs);
         runs.clear();
+        String dropped = pendingKey;
         pendingKey = null;
         String saveError = hits.isEmpty() && lush.isEmpty() ? null : save(false);
         if (saveError != null) Finder.message(saveError);
         refuse(key, "Stopped", "Seed search stopped." + (hits.isEmpty() || saveError != null ? ""
             : " The " + hits.size() + " spliced top halves found so far are saved."), fromCommand);
+        if (dropped != null) {
+            results.put(dropped, "Queued search dropped: search stopped");
+            Finder.message("The seed search queued for " + dropped + " was dropped: the running search was stopped. Press Seed Search there to run it.");
+        }
     }
 
     void stopFor(String key, String status) {
