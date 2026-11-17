@@ -80,7 +80,7 @@ final class SearchRun {
             spec.store(out, null);
         }
         Files.writeString(dir.resolve("results.tsv"), "");
-        Process process = new ProcessBuilder(command(dir, radius, launch)).directory(dir.toFile()).redirectErrorStream(true)
+        Process process = new ProcessBuilder(command(dir, radius, launch)).directory(dir.toRealPath().toFile()).redirectErrorStream(true)
             .redirectOutput(dir.resolve("server.log").toFile()).start();
         return new SearchRun(order, dir, process);
     }
