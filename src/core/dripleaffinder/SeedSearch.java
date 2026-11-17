@@ -380,7 +380,13 @@ public final class SeedSearch {
     private void startPending(Minecraft mc) {
         String next = pendingKey;
         pendingKey = null;
-        if (next != null && next.equals(Finder.connectionKey(mc))) start(mc, finder.settings.radius, true);
+        if (next == null) return;
+        if (next.equals(Finder.connectionKey(mc))) {
+            start(mc, finder.settings.radius, true);
+        } else {
+            results.put(next, "Queued search dropped: you left");
+            Finder.message("The seed search queued for " + next + " was dropped: you left that server. Press Seed Search there to run it.");
+        }
     }
 
     static List<String> mergeLush(List<String> old, List<String> fresh) {
