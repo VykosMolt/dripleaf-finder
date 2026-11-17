@@ -134,10 +134,11 @@ public final class ClientCheck {
             java.util.List.of(java.util.List.of("10asc", "5000asc", "500asc"), java.util.List.of("5000asc", "500asc"),
                 java.util.List.of("10asc", "300asc", "5000asc", "500asc")));
         commandLine();
+        searchCache();
 
         System.out.println("CLIENT CHECK PASSED: 2 azalea trees, trunkless leaves dropped; data rows, box edges, memory, data keys, host names,"
             + " server versions, server types, folia guidance, splice guidance, search memory, brief status, candidates row, set-aside names,"
-            + " merged predictions, search command line");
+            + " merged predictions, search command line, search cache");
     }
 
     static void commandLine() throws java.io.IOException {
@@ -161,5 +162,40 @@ public final class ClientCheck {
             "-Dfabric.addMods=../../cache/searchers/engine.jar:../../../mods/dripleaf.jar", "-Ddripleaffinder.search=search.properties", "-cp",
             "/prism/libraries/fabric-loader.jar:../../cache/1.21.3/intermediary.jar:jars/_ten_.jar", "net.fabricmc.loader.impl.launch.knot.KnotServer",
             "nogui"), true));
+    }
+
+    static void searchCache() throws java.io.IOException {
+        java.nio.file.Path root = java.nio.file.Files.createTempDirectory("dripleaf-cache-check"), dir = root.resolve("search");
+        java.util.List<java.nio.file.Path> jars = java.util.stream.Stream.of("game.jar", "engine.jar", "loader.jar", "intermediary.jar")
+            .map(root::resolve).toList();
+        try {
+            for (java.nio.file.Path jar : jars) java.nio.file.Files.writeString(jar, "old");
+            Searchers.Launch launch = new Searchers.Launch(jars.get(0), java.util.List.of(jars.get(1)),
+                java.util.List.of(jars.get(2).toString()), java.util.List.of(jars.get(3)));
+            String stamp = SearchRun.jars(launch);
+            SearchRun.clear(dir, stamp);
+            java.nio.file.Path cached = dir.resolve(".fabric/remapped.jar"), stale = dir.resolve("world/chunk");
+            java.nio.file.Files.writeString(cached, "cached");
+            java.nio.file.Files.createDirectories(stale.getParent());
+            java.nio.file.Files.writeString(stale, "stale");
+            SearchRun.clear(dir, stamp);
+            expect("unchanged search cache", java.util.List.of(java.nio.file.Files.readString(cached), java.nio.file.Files.exists(stale)),
+                java.util.List.of("cached", false));
+            for (java.nio.file.Path jar : jars) {
+                java.nio.file.Files.writeString(cached, "cached");
+                java.nio.file.attribute.FileTime modified = java.nio.file.Files.getLastModifiedTime(jar);
+                java.nio.file.Files.writeString(jar, "new");
+                java.nio.file.Files.setLastModifiedTime(jar, modified);
+                String changed = SearchRun.jars(launch);
+                SearchRun.clear(dir, changed);
+                expect("changed search jar " + jar.getFileName(), java.util.List.of(changed.equals(stamp), java.nio.file.Files.exists(cached)),
+                    java.util.List.of(false, false));
+                stamp = changed;
+            }
+        } finally {
+            try (java.util.stream.Stream<java.nio.file.Path> all = java.nio.file.Files.walk(root)) {
+                for (java.nio.file.Path path : all.sorted(java.util.Comparator.reverseOrder()).toList()) java.nio.file.Files.delete(path);
+            }
+        }
     }
 }
