@@ -93,6 +93,14 @@ public final class SelfCheck {
         expect("data rows", java.util.List.of(predictions.size(), predictions.isEmpty() ? "none" : predictions.get(0).half(),
             lushRows.size(), lushRows.isEmpty() ? "none" : lushRows.get(0)[3]), java.util.List.of(1, "top", 1, 22313));
 
+        java.util.List<String> vertices = new java.util.ArrayList<>();
+        Boxes.edges(new AABB(0, 0, 0, 1, 2, 3), (x, y, z, n) -> vertices.add(x + " " + y + " " + z + " / " + n.x + " " + n.y + " " + n.z));
+        int[] flat = {0};
+        Boxes.edges(new AABB(0, 5, 0, 1, 5, 1), (x, y, z, n) -> flat[0]++);
+        expect("box edges", java.util.List.of(vertices.size(), vertices.get(0), vertices.get(1), vertices.get(9), vertices.get(23), flat[0]),
+            java.util.List.of(24, "0.0 0.0 0.0 / 1.0 0.0 0.0", "1.0 0.0 0.0 / 1.0 0.0 0.0", "0.0 2.0 0.0 / 0.0 1.0 0.0",
+                "1.0 2.0 3.0 / 0.0 0.0 1.0", 16));
+
         Memory memory = new Memory();
         BlockPos p = new BlockPos(1, 2, 3);
         memory.enter("a");
@@ -139,6 +147,6 @@ public final class SelfCheck {
 
         System.out.println("SELF-CHECK PASSED: masked server " + masked.size() + " / plain server " + plain.size()
             + " spliced top halves; whole plants, lone bottoms, big dripleaf, stone/deepslate/ore below, open sky, outside lush caves ignored;"
-            + " 2 azalea trees, trunkless leaves dropped; settle, data rows, memory, data keys, host names, server versions, splice guidance");
+            + " 2 azalea trees, trunkless leaves dropped; settle, data rows, box edges, memory, data keys, host names, server versions, splice guidance");
     }
 }
